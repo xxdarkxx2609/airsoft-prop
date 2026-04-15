@@ -1,0 +1,23 @@
+[Unit]
+Description=Airsoft Prop
+After=multi-user.target sound.target
+Wants=network-online.target sound.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=__INSTALL_DIR__
+# Give USB audio devices time to enumerate before starting the app.
+ExecStartPre=/bin/sleep 3
+ExecStart=__VENV_DIR__/bin/python -m src.main
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Environment
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

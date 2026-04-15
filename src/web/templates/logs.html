@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="card">
+    <h2>Log Files</h2>
+    <div class="form-actions" style="margin-top: 0; margin-bottom: 12px;">
+        <select id="log-select" onchange="loadLogFile()">
+            <option value="">Select a log file...</option>
+        </select>
+        <button class="btn btn-small btn-secondary" onclick="fetchLogList()">Refresh</button>
+    </div>
+    <div id="log-files-info"></div>
+</section>
+
+<section class="card" id="log-viewer-card" class="hidden">
+    <div class="log-viewer-header">
+        <h2 id="log-viewer-title">Log Viewer</h2>
+        <div class="log-viewer-controls">
+            <label for="log-lines">Lines:</label>
+            <select id="log-lines" onchange="loadLogFile()">
+                <option value="50">50</option>
+                <option value="100">100</option>
+                <option value="200" selected>200</option>
+                <option value="500">500</option>
+                <option value="0">All</option>
+            </select>
+            <label for="log-filter">Filter:</label>
+            <input type="text" id="log-filter" placeholder="e.g. ERROR" oninput="filterLogLines()">
+        </div>
+    </div>
+    <div id="log-content" class="log-content">
+        <p class="loading">Select a log file above...</p>
+    </div>
+    <div id="log-stats" class="log-stats"></div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    fetchLogList();
+</script>
+{% endblock %}

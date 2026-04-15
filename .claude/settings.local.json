@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import ast; ast.parse\\(open\\('src/ui/base_screen.py'\\).read\\(\\)\\); print\\('base_screen.py: OK'\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('src/ui/screen_manager.py'\\).read\\(\\)\\); print\\('screen_manager.py: OK'\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('src/ui/lcd_helpers.py'\\).read\\(\\)\\); print\\('lcd_helpers.py: OK'\\)\")",
+      "Bash(python -c \"import ast; [ast.parse\\(open\\(f\\).read\\(\\)\\) for f in ['src/hal/display_mock.py', 'src/hal/audio_mock.py', 'src/hal/input_mock.py', 'src/hal/wires_mock.py', 'src/hal/battery_none.py']]; print\\('All files parse OK'\\)\")",
+      "Bash(python -c ':*)"
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+logs/
+prop.log
+install.log
+*.pyc
+__pycache__/
+venv/
+config/user.yaml
+config/usb_keys.yaml
+custom/

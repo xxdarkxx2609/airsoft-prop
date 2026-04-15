@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<!-- Security Status -->
+<section class="card">
+    <h2>Security Mode</h2>
+    <div id="security-status"><p class="loading">Loading...</p></div>
+</section>
+
+<!-- Generate New Key -->
+<section class="card">
+    <h2>Generate New Key</h2>
+
+    <div class="form-group">
+        <label>Key Type</label>
+        <div style="display:flex;gap:16px;margin-top:4px;">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                <input type="radio" name="key-type" value="defuse" checked>
+                Defuse Key <small style="color:var(--text-dim);">(DEFUSE.KEY)</small>
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                <input type="radio" name="key-type" value="tournament">
+                Tournament Key <small style="color:var(--text-dim);">(TOURNAMENT.KEY)</small>
+            </label>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="key-label">Label <small style="color:var(--text-dim);">(optional)</small></label>
+        <input type="text" id="key-label" maxlength="64" placeholder="e.g. Red Team Key">
+    </div>
+
+    <div class="form-group">
+        <label>Target USB Stick</label>
+        <div id="usb-stick-list" style="margin-top:6px;"><p class="loading">Scanning...</p></div>
+        <button class="btn btn-secondary btn-small" style="margin-top:8px;" onclick="refreshUsbSticks()">
+            Refresh USB Sticks
+        </button>
+    </div>
+
+    <div style="margin-top:16px;">
+        <button class="btn" onclick="generateKey()">Generate &amp; Write Key</button>
+    </div>
+
+    <div id="generate-result" class="hidden" style="margin-top:12px;"></div>
+    <div id="generate-message" class="message hidden"></div>
+</section>
+
+<!-- Existing Keys -->
+<section class="card">
+    <h2>Defuse Keys</h2>
+    <div id="defuse-keys-list"><p class="loading">Loading...</p></div>
+</section>
+
+<section class="card">
+    <h2>Tournament Keys</h2>
+    <div id="tournament-keys-list"><p class="loading">Loading...</p></div>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Initial load
+    loadUsbKeys();
+    refreshUsbSticks();
+
+    // ----------------------------------------------------------------
+    // Data loading
+    // ----------------------------------------------------------------
+
+    async function loadUsbKeys() {
+        try {
+            const data = await apiGet("/api/usb-keys");
+            renderSecurityStatus(data);
+            renderKeyList("defuse-keys-list", "defuse", data.defuse_keys);
+            renderKeyList("tournament-keys-list", "tournament", data.tournament_keys);
+        } catch (e) {
+            document.getElementById("security-status").innerHTML =
+                '<p class="message error">Failed to load key data.</p>';
+        }
+    }
+
+    async function refreshUsbSticks() {
+        const el = document.getElementById("usb-stick-list");
+        el.innerHTML = '<p class="loading">Scanning for USB sticks...</p>';
+        try {
+            const data = await apiGet("/api/usb-keys/usb-sticks");
+            if (!data.sticks || data.sticks.length === 0) {
+                el.innerHTML = "<p style='color:var(--text-dim);font-size:.9rem;'>No USB sticks detected. Insert a USB stick and press <em>Refresh</em>.</p>";
+            } else {
+                el.innerHTML = data.sticks.map((s, i) => {
+                    // Build secondary info line
+                    const meta = [];
+                    if (s.size_total) {
+                        const sizeStr = s.size_free
+                            ? `${s.size_total} (${s.size_free} free)`
+                            : s.size_total;
+                        meta.push(sizeStr);
+                    }
+                    meta.push(escHtml(s.mount_point));
+
+                    // Build key status badges
+                    const badges = [];
+                    if (s.defuse_status === "registered") {
+                        badges.push(`<span style="display:inline-block;margin-top:4px;margin-right:4px;padding:1px 6px;border-radius:3px;font-size:.75rem;background:var(--success-bg,#1a3a1a);color:var(--success,#6fbf6f);">DEFUSE: ${escHtml(s.defuse_label)}</span>`);
+                    } else if (s.defuse_status === "permissive") {
+                        badges.push(`<span style="display:inline-block;margin-top:4px;margin-right:4px;padding:1px 6px;border-radius:3px;font-size:.75rem;background:var(--warning-bg,#3a2a00);color:var(--warning,#c8a020);">DEFUSE: PERMISSIVE KEY</span>`);
+                    }
+                    if (s.tournament_status === "registered") {
+                        badges.push(`<span style="display:inline-block;margin-top:4px;margin-right:4px;padding:1px 6px;border-radius:3px;font-size:.75rem;background:var(--success-bg,#1a3a1a);color:var(--success,#6fbf6f);">TOURNAMENT: ${escHtml(s.tournament_label)}</span>`);
+                    } else if (s.tournament_status === "permissive") {
+                        badges.push(`<span style="display:inline-block;margin-top:4px;margin-right:4px;padding:1px 6px;border-radius:3px;font-size:.75rem;background:var(--warning-bg,#3a2a00);color:var(--warning,#c8a020);">TOURNAMENT: PERMISSIVE KEY</span>`);
+                    }
+
+                    return `
+                    <label style="display:flex;gap:10px;padding:8px 0;cursor:pointer;align-items:flex-start;border-bottom:1px solid var(--border);">
+                        <input type="radio" name="usb-stick" value="${escHtml(s.mount_point)}" ${i === 0 ? "checked" : ""} style="margin-top:3px;flex-shrink:0;">
+                        <span>
+                            <strong>${escHtml(s.display_name)}</strong>
+                            <span style="display:block;color:var(--text-dim);font-size:.8rem;margin-top:2px;">${meta.join(" &bull; ")}</span>
+                            ${badges.length ? `<span style="display:block;">${badges.join("")}</span>` : ""}
+                        </span>
+                    </label>`;
+                }).join("");
+            }
+        } catch (e) {
+            el.innerHTML = '<p class="message error">Scan failed.</p>';
+        }
+    }
+
+    // ----------------------------------------------------------------
+    // Rendering
+    // ----------------------------------------------------------------
+
+    function renderSecurityStatus(data) {
+        const el = document.getElementById("security-status");
+        const lines = [];
+
+        if (data.permissive_defuse) {
+            lines.push(`<p class="message warning" style="margin-top:0;">
+                <strong>Defuse keys:</strong> Permissive mode — any USB stick named
+                <code>DEFUSE.KEY</code> will be accepted. Generate a key below to
+                enable cryptographic validation.
+            </p>`);
+        } else {
+            lines.push(`<p class="message success" style="margin-top:0;">
+                <strong>Defuse keys:</strong> Strict mode — only registered tokens accepted
+                (${data.defuse_keys.length} key${data.defuse_keys.length !== 1 ? "s" : ""}).
+            </p>`);
+        }
+
+        if (data.permissive_tournament) {
+            lines.push(`<p class="message warning">
+                <strong>Tournament keys:</strong> Permissive mode — any USB stick named
+                <code>TOURNAMENT.KEY</code> will be accepted.
+            </p>`);
+        } else {
+            lines.push(`<p class="message success">
+                <strong>Tournament keys:</strong> Strict mode — only registered tokens accepted
+                (${data.tournament_keys.length} key${data.tournament_keys.length !== 1 ? "s" : ""}).
+            </p>`);
+        }
+
+        el.innerHTML = lines.join("");
+    }
+
+    function renderKeyList(elementId, keyType, keys) {
+        const el = document.getElementById(elementId);
+        if (!keys || keys.length === 0) {
+            el.innerHTML = "<p style='color:var(--text-dim);font-size:.9rem;'>No keys registered yet.</p>";
+            return;
+        }
+        el.innerHTML = keys.map(k => {
+            const date = k.created_at
+                ? new Date(k.created_at).toLocaleString()
+                : "Unknown date";
+            return `<div class="saved-item">
+                <div>
+                    <div style="font-weight:500;">${escHtml(k.label)}</div>
+                    <div style="font-size:.8rem;color:var(--text-dim);">
+                        ID: <code>${escHtml(k.id)}</code> &bull; ${date}
+                    </div>
+                </div>
+                <button class="btn btn-danger btn-small"
+                        onclick="revokeKey('${keyType}', '${escHtml(k.id)}', '${escHtml(k.label)}')">
+                    Revoke
+                </button>
+            </div>`;
+        }).join("");
+    }
+
+    // ----------------------------------------------------------------
+    // Actions
+    // ----------------------------------------------------------------
+
+    async function generateKey() {
+        const keyType = document.querySelector('input[name="key-type"]:checked')?.value;
+        const mountPoint = document.querySelector('input[name="usb-stick"]:checked')?.value;
+        const label = document.getElementById("key-label").value.trim();
+
+        if (!mountPoint) {
+            showMessage("generate-message", "Please select a USB stick first.", "error");
+            return;
+        }
+
+        // Clear previous token display
+        const resultEl = document.getElementById("generate-result");
+        resultEl.classList.add("hidden");
+        resultEl.innerHTML = "";
+
+        try {
+            const result = await apiPost("/api/usb-keys/generate", {
+                key_type: keyType,
+                mount_point: mountPoint,
+                label: label,
+            });
+
+            if (result.success) {
+                // Display the token exactly once with prominent warning
+                resultEl.innerHTML = `
+                    <div class="message success">
+                        <strong>Key written successfully!</strong><br>
+                        ${escHtml(result.message)}<br><br>
+                        <span style="font-size:.85rem;color:var(--text-dim);">
+                            Token (shown once — the USB stick file is the only copy):
+                        </span><br>
+                        <code style="display:block;word-break:break-all;padding:8px;background:var(--bg);border-radius:4px;margin:6px 0;font-size:.85rem;">${escHtml(result.token)}</code>
+                        <button class="btn btn-secondary btn-small"
+                                onclick="copyToken('${escJs(result.token)}')">
+                            Copy Token
+                        </button>
+                        <br><br>
+                        <em style="font-size:.8rem;color:var(--text-dim);">
+                            This token will not be shown again. The file on the USB stick
+                            contains this token. Keep the USB stick safe.
+                        </em>
+                    </div>`;
+                resultEl.classList.remove("hidden");
+                document.getElementById("key-label").value = "";
+                loadUsbKeys();
+            } else {
+                showMessage("generate-message", result.message || "Key generation failed.", "error");
+            }
+        } catch (e) {
+            showMessage("generate-message", "Request failed — check server logs.", "error");
+        }
+    }
+
+    async function revokeKey(keyType, keyId, label) {
+        if (!confirm(`Revoke key "${label}"?\n\nThe USB stick will still contain the file, but the device will no longer accept it.`)) {
+            return;
+        }
+        try {
+            const resp = await fetch(`/api/usb-keys/${encodeURIComponent(keyType)}/${encodeURIComponent(keyId)}`, {
+                method: "DELETE",
+            });
+            const result = await resp.json();
+            if (result.success) {
+                loadUsbKeys();
+            } else {
+                alert(result.message || "Revoke failed.");
+            }
+        } catch (e) {
+            alert("Request failed — check server logs.");
+        }
+    }
+
+    function copyToken(token) {
+        navigator.clipboard.writeText(token).then(() => {
+            showMessage("generate-message", "Token copied to clipboard.", "success");
+        }).catch(() => {
+            showMessage("generate-message", "Clipboard access denied — copy the token manually.", "error");
+        });
+    }
+
+    // ----------------------------------------------------------------
+    // Helpers
+    // ----------------------------------------------------------------
+
+    function escHtml(str) {
+        return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    }
+
+    function escJs(str) {
+        // Escape for use inside a JS string literal within an HTML attribute
+        return String(str).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    }
+</script>
+{% endblock %}

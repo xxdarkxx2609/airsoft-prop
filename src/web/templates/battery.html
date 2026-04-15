@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="card">
+    <h2>Battery</h2>
+    <div id="battery-info">
+        <p class="loading">Loading battery info...</p>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    fetchBatteryInfo();
+    setInterval(fetchBatteryInfo, 10000);
+</script>
+{% endblock %}

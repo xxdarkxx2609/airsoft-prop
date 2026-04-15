@@ -1,0 +1,58 @@
+# Hardware configuration for Airsoft Prop
+# Adjust these settings based on your actual hardware setup.
+
+# HAL module selection
+# For each component, specify which implementation to use.
+# Use "mock" variants for desktop testing without Pi hardware.
+hal:
+  display: "lcd"        # "lcd" for HD44780 I2C, "mock" for terminal output
+  audio: "pygame"       # "pygame" for real audio, "mock" for silent logging
+  input: "numpad"       # "numpad" for USB numpad, "mock" for keyboard input
+  wires: "gpio"         # "gpio" for real GPIO wires, "mock" for simulated
+  battery: "none"       # "pisugar" or "none"
+  usb_detector: "usb_detector"  # "usb_detector" for real USB, "mock" for simulated
+  led: "gpio"           # "gpio" for real GPIO LED, "mock" for terminal logging
+
+# I2C LCD Display (HD44780 with PCF8574 backpack)
+lcd:
+  # I2C address (common values: 0x27 or 0x3F)
+  i2c_address: 0x27
+  # Display dimensions
+  cols: 20
+  rows: 4
+  # I2C port (1 for Raspberry Pi)
+  i2c_port: 1
+
+# GPIO pin assignments (BCM numbering)
+gpio:
+  wires:
+    # Wire 1: Defuse wire
+    wire_defuse: 17    # GPIO17 (Pin 11)
+    # Wire 2: Explode wire
+    wire_explode: 27   # GPIO27 (Pin 13)
+    # Wire 3: Halve timer wire
+    wire_halve: 22     # GPIO22 (Pin 15)
+
+  led:
+    pin: 24             # GPIO24 (Pin 18) — beep indicator LED
+
+  # Pull-down resistors are external (10kΩ)
+  # Wire inserted = HIGH (intact), Wire pulled = LOW (cut)
+
+# Audio output
+audio:
+  # Output type: "usb" for USB speaker, "pwm" for GPIO18 PAM8403
+  output: "usb"
+  # PWM pin (only used when output=pwm)
+  pwm_pin: 18          # GPIO18 (Pin 12)
+  # Mixer frequency (44100 for USB, 22050 for PWM)
+  frequency: 44100
+  # Mixer buffer size (1024 for USB, 512 for PWM)
+  buffer: 1024
+
+# Battery / UPS HAT
+# PiSugar 3 communicates primarily via pisugar-power-manager daemon
+# (TCP socket on localhost:8423). I2C address is for reference only.
+battery:
+  # PiSugar 3 I2C address (IP5312 chip)
+  pisugar_address: 0x57

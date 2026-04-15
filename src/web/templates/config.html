@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="card">
+    <h2>Game Settings</h2>
+    <form id="config-form" onsubmit="saveConfig(event)">
+        <div class="form-group">
+            <label for="device-name">Device Name | Shown on LCD (max 7 characters)</label>
+            <input type="text" id="device-name" data-key="game.device_name"
+                   maxlength="7" placeholder="Prop">
+        </div>
+
+        <div class="form-group">
+            <label for="default-timer">Default Timer (seconds)</label>
+            <input type="number" id="default-timer" data-key="game.default_timer"
+                   min="30" max="5999" step="30">
+        </div>
+
+        <div class="form-group">
+            <label for="timer-step">Timer Step (seconds)</label>
+            <input type="number" id="timer-step" data-key="game.timer_step"
+                   min="10" max="300" step="10">
+        </div>
+
+        <h3>Random Code</h3>
+        <div class="form-group">
+            <label for="default-digits">Default Digits | due to UI Limitations this is capped at 20 Digits</label>
+            <input type="number" id="default-digits" data-key="modes.random_code.default_digits"
+                   min="4" max="20" step="1">
+        </div>
+
+        <h3>Set Code</h3>
+        <div class="form-group">
+            <label for="max-code-length">Max Code Length | due to UI Limitations this is capped at 10 Digits</label>
+            <input type="number" id="max-code-length" data-key="modes.set_code.max_code_length"
+                   min="1" max="10" step="1">
+        </div>
+
+        <h3>Plus Modes</h3>
+        <div class="form-group">
+            <label for="penalty-seconds">Penalty Seconds | Time deducted per wrong digit in Plus modes</label>
+            <input type="number" id="penalty-seconds" data-key="game.penalty_seconds"
+                   min="1" max="60" step="1">
+        </div>
+
+        <h3>Audio</h3>
+        <div class="form-group">
+            <label for="volume">Volume</label>
+            <input type="range" id="volume" data-key="audio.volume"
+                   min="0" max="1" step="0.1">
+            <span id="volume-value">0.8</span>
+        </div>
+
+        <h3>Display</h3>
+        <div class="form-group">
+            <label for="backlight">
+                <input type="checkbox" id="backlight" data-key="display.backlight">
+                LCD Backlight
+            </label>
+        </div>
+
+        <h3>Logging</h3>
+        <div class="form-group">
+            <label for="log-level">Log Level</label>
+            <select id="log-level" data-key="logging.level">
+                <option value="DEBUG">DEBUG</option>
+                <option value="INFO">INFO</option>
+                <option value="WARNING">WARNING</option>
+                <option value="ERROR">ERROR</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="max-files">Max Archived Log Files</label>
+            <input type="number" id="max-files" data-key="logging.max_files"
+                   min="1" max="50" step="1">
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn">Save Settings</button>
+            <button type="button" class="btn btn-secondary" onclick="resetConfig()">Reset to Defaults</button>
+        </div>
+        <div id="config-message" class="message hidden"></div>
+    </form>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    loadConfig();
+
+    document.getElementById('volume').addEventListener('input', function() {
+        document.getElementById('volume-value').textContent = this.value;
+    });
+</script>
+{% endblock %}

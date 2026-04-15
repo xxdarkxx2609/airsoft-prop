@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="card">
+    <h2>Software Update</h2>
+    <div id="update-status">
+        <p>Press "Check for Updates" to see if a new version is available.</p>
+    </div>
+    <div class="form-actions">
+        <button id="btn-check" class="btn" onclick="checkUpdate()">Check for Updates</button>
+        <button id="btn-install" class="btn btn-danger hidden" onclick="installUpdate()">Install Update</button>
+        <button id="btn-restart" class="btn btn-danger hidden" onclick="restartService()">Restart Service</button>
+    </div>
+    <div id="update-message" class="message hidden"></div>
+</section>
+{% endblock %}

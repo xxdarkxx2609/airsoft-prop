@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<!-- Info -->
+<section class="card">
+    <h2>Custom Sounds</h2>
+    <p style="font-size:.85rem;color:var(--text-dim);margin-bottom:0;">
+        Upload custom WAV files to <code>custom/sounds/</code>. Files with the same name
+        as a built-in sound (e.g. <code>beep.wav</code>) will automatically override
+        it during gameplay. Custom sounds survive updates.
+    </p>
+</section>
+
+<!-- Sound List -->
+<section class="card">
+    <h2>Uploaded Sounds</h2>
+    <div id="sound-list"><p class="loading">Loading...</p></div>
+</section>
+
+<!-- Upload -->
+<section class="card">
+    <h2>Upload Sound</h2>
+    <form id="upload-form" onsubmit="uploadSound(event)">
+        <div class="form-group">
+            <label for="upload-file">WAV File</label>
+            <input type="file" id="upload-file" accept=".wav,audio/wav" style="color:var(--text);">
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn">Upload</button>
+        </div>
+        <div id="upload-message" class="message hidden"></div>
+    </form>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    loadSounds();
+
+    // ----------------------------------------------------------------
+    // Data loading
+    // ----------------------------------------------------------------
+
+    async function loadSounds() {
+        try {
+            const data = await apiGet("/api/sounds");
+            renderSoundList(data.sounds);
+        } catch (e) {
+            document.getElementById("sound-list").innerHTML =
+                '<p class="message error">Failed to load sounds.</p>';
+        }
+    }
+
+    // ----------------------------------------------------------------
+    // Rendering
+    // ----------------------------------------------------------------
+
+    function renderSoundList(sounds) {
+        const el = document.getElementById("sound-list");
+
+        if (!sounds || sounds.length === 0) {
+            el.innerHTML = '<p style="color:var(--text-dim);">No custom sounds uploaded yet.</p>';
+            return;
+        }
+
+        el.innerHTML = sounds.map(s => {
+            const filename = escHtml(s.filename);
+            const size = formatSize(s.size);
+            const badge = s.overrides_default
+                ? '<span class="sound-badge sound-badge-custom">Overrides default</span>'
+                : '';
+
+            return `
+            <div class="sound-item">
+                <div class="sound-info">
+                    <div class="sound-name">${filename}</div>
+                    <div class="sound-detail">${size} ${badge}</div>
+                </div>
+                <div class="sound-actions">
+                    <button class="btn btn-secondary btn-small" onclick="previewSound('${escJs(s.filename)}')" title="Play">&#9654;</button>
+                    <button class="btn btn-danger btn-small" onclick="deleteSound('${escJs(s.filename)}')" title="Delete">Delete</button>
+                </div>
+            </div>`;
+        }).join("");
+    }
+
+    // ----------------------------------------------------------------
+    // Actions
+    // ----------------------------------------------------------------
+
+    async function uploadSound(event) {
+        event.preventDefault();
+
+        const fileInput = document.getElementById("upload-file");
+
+        if (!fileInput.files || fileInput.files.length === 0) {
+            showMessage("upload-message", "Please select a WAV file.", "error");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("file", fileInput.files[0]);
+
+        try {
+            const resp = await fetch("/api/sounds/upload", {
+                method: "POST",
+                body: formData,
+            });
+            const result = await resp.json();
+
+            if (result.success) {
+                showMessage("upload-message", result.message, "success");
+                fileInput.value = "";
+                loadSounds();
+            } else {
+                showMessage("upload-message", result.message || "Upload failed.", "error");
+            }
+        } catch (e) {
+            showMessage("upload-message", "Upload failed — check server logs.", "error");
+        }
+    }
+
+    async function deleteSound(filename) {
+        if (!confirm(`Delete "${filename}"?`)) return;
+        try {
+            const resp = await fetch(`/api/sounds/${encodeURIComponent(filename)}`, {
+                method: "DELETE",
+            });
+            const result = await resp.json();
+            if (result.success) {
+                loadSounds();
+            } else {
+                alert(result.message || "Delete failed.");
+            }
+        } catch (e) {
+            alert("Request failed — check server logs.");
+        }
+    }
+
+    // Current audio element for preview
+    let _previewAudio = null;
+
+    function previewSound(filename) {
+        if (_previewAudio) {
+            _previewAudio.pause();
+            _previewAudio = null;
+        }
+        _previewAudio = new Audio(`/api/sounds/preview/${encodeURIComponent(filename)}`);
+        _previewAudio.play().catch(e => console.error("Preview failed:", e));
+    }
+
+    // ----------------------------------------------------------------
+    // Helpers
+    // ----------------------------------------------------------------
+
+    function formatSize(bytes) {
+        if (bytes < 1024) return bytes + " B";
+        if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB";
+        return (bytes / 1048576).toFixed(1) + " MB";
+    }
+
+    function escHtml(str) {
+        return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    }
+
+    function escJs(str) {
+        return String(str).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    }
+</script>
+{% endblock %}

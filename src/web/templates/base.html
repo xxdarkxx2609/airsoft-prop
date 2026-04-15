@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Airsoft Prop</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>&#x1f3af; Airsoft Prop</h1>
+        <nav>
+            <a href="/wifi" class="{% if active == 'wifi' %}active{% endif %}">WiFi</a>
+            <a href="/tournament" class="{% if active == 'tournament' %}active{% endif %}">Tournament</a>
+            <a href="/usb-keys" class="{% if active == 'usb-keys' %}active{% endif %}">USB Keys</a>
+            <a href="/config" class="{% if active == 'config' %}active{% endif %}">Settings</a>
+            <a href="/sounds" class="{% if active == 'sounds' %}active{% endif %}">Sounds</a>
+            <a href="/system" class="{% if active == 'system' %}active{% endif %}">System</a>
+            <a href="/battery" class="{% if active == 'battery' %}active{% endif %}">Battery</a>
+            <a href="/logs" class="{% if active == 'logs' %}active{% endif %}">Logs</a>
+            <a href="/update" class="{% if active == 'update' %}active{% endif %}">Update</a>
+        </nav>
+    </header>
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+        <span id="connection-status" class="status-dot disconnected"></span>
+        <span id="connection-text">Checking...</span>
+    </footer>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,27 @@
+# Network configuration for Airsoft Prop
+
+# Default hotspot to connect to (Variant 1)
+# Configure your phone hotspot with these credentials
+# and the Pi will auto-connect on boot.
+hotspot:
+  ssid: "AirsoftProp"
+  password: "defuse1337"
+
+# Access Point settings (Variant 2 — Captive Portal)
+# When no known WiFi is found, the Pi creates its own AP.
+access_point:
+  ssid: "airsoft-prop"
+  password: "defuse1337"
+  channel: 6
+  # IP address range for connected clients
+  ip: "192.168.4.1"
+  netmask: "255.255.255.0"
+  dhcp_range_start: "192.168.4.10"
+  dhcp_range_end: "192.168.4.50"
+
+# Web interface settings
+web:
+  # Port for the Flask web interface
+  port: 8080
+  # Enable web interface
+  enabled: true

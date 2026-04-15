@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="card">
+    <h2>System Information</h2>
+    <div id="system-info">
+        <p class="loading">Loading system info...</p>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    fetchSystemInfo();
+</script>
+{% endblock %}

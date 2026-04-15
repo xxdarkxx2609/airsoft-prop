@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="card">
+    <h2>WiFi Status</h2>
+    <div id="wifi-status">
+        <p class="loading">Fetching status...</p>
+    </div>
+</section>
+
+<section class="card">
+    <h2>Available Networks</h2>
+    <button id="btn-scan" class="btn" onclick="scanNetworks()">Scan</button>
+    <div id="network-list">
+        <p class="loading">Press Scan to search...</p>
+    </div>
+</section>
+
+<section class="card">
+    <h2>Saved Networks</h2>
+    <div id="saved-networks">
+        <p class="loading">Loading...</p>
+    </div>
+</section>
+
+<!-- Connect dialog -->
+<div id="connect-dialog" class="dialog hidden">
+    <div class="dialog-content">
+        <h3>Connect to <span id="connect-ssid"></span></h3>
+        <form id="connect-form" onsubmit="connectToNetwork(event)">
+            <div class="form-group" id="password-group">
+                <label for="wifi-password">Password</label>
+                <input type="password" id="wifi-password" autocomplete="off">
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeDialog()">Cancel</button>
+                <button type="submit" class="btn">Connect</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Load WiFi status on page load
+    fetchWifiStatus();
+    fetchSavedNetworks();
+</script>
+{% endblock %}

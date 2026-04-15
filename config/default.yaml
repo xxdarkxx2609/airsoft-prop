@@ -1,0 +1,41 @@
+audio:
+  beep_10s: 0.5
+  beep_30s: 2.0
+  beep_5s: 0.2
+  beep_normal: 5.0
+  sounds:
+    beep: assets/sounds/beep.wav
+    defused: assets/sounds/defused.wav
+    explosion: assets/sounds/explosion.wav
+    planted: assets/sounds/planted.wav
+    siren: assets/sounds/siren.wav
+    wrong: assets/sounds/wrong.wav
+  volume: 0.5
+display:
+  backlight: true
+  boot_duration: 2.5
+game:
+  device_name: Prop
+  default_timer: 300
+  max_timer: 5999
+  min_timer: 30
+  timer_large_step: 300
+  timer_step: 30
+  penalty_seconds: 10
+logging:
+  level: INFO
+  log_dir: logs
+  log_file: prop.log
+  max_files: 10
+tournament:
+  enabled: false
+  mode: random_code
+  pin: '0000'
+  settings: {}
+modes:
+  random_code:
+    default_digits: 10
+    max_digits: 20
+    min_digits: 4
+  set_code:
+    max_code_length: 10

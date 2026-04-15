@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="card">
+    <h2>Tournament Mode</h2>
+    <form id="tournament-form" onsubmit="saveTournament(event)">
+        <div class="form-group">
+            <label for="tournament-enabled">
+                <input type="checkbox" id="tournament-enabled">
+                Enable Tournament Mode
+            </label>
+            <small>When enabled, players can only start the configured game mode. All other screens are locked.</small>
+        </div>
+        <hr>
+
+        <div id="tournament-settings">
+            <div class="form-group">
+                <label for="tournament-mode">Game Mode</label>
+                <select id="tournament-mode" onchange="onTournamentModeChange()">
+                </select>
+            </div>
+
+            <div id="mode-settings-container">
+                <!-- Dynamically populated based on selected mode -->
+            </div>
+
+            <h3>Emergency Exit</h3>
+            <div class="form-group">
+                <label for="tournament-pin">PIN (4 digits)</label>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="password" id="tournament-pin" maxlength="4" pattern="[0-9]{4}"
+                           inputmode="numeric" style="width: 120px; letter-spacing: 0.3em; text-align: center;">
+                    <button type="button" class="btn btn-secondary btn-small" onclick="togglePinVisibility()">Show</button>
+                </div>
+                <small>5x Backspace on the device triggers PIN entry. USB stick with TOURNAMENT.KEY also exits tournament mode.</small>
+            </div>
+            <div id="pin-warning" class="message info hidden">
+                Default PIN in use — consider changing it for security.
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn">Save Settings</button>
+        </div>
+        <div id="tournament-message" class="message hidden"></div>
+    </form>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    loadTournament();
+</script>
+{% endblock %}
