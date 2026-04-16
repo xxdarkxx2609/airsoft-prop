@@ -107,8 +107,10 @@ class Config:
     def _load(self) -> None:
         """Load all configuration files.
 
-        Load order: default.yaml → custom/user.yaml → hardware.yaml → network.yaml.
+        Load order: default.yaml → custom/user.yaml → hardware.yaml →
+        custom/hardware.yaml → network.yaml.
         User overrides win over defaults but are stored separately in custom/.
+        custom/hardware.yaml overrides config/hardware.yaml for HAL selection.
         """
         # Migrate legacy config/user.yaml → custom/user.yaml on first load.
         _migrate_config_to_custom()
@@ -124,6 +126,11 @@ class Config:
         hardware = load_yaml("hardware.yaml")
         network = load_yaml("network.yaml")
         _deep_merge(self._data, hardware)
+
+        custom_hardware = _load_custom_yaml("hardware.yaml")
+        if custom_hardware:
+            _deep_merge(self._data, custom_hardware)
+
         _deep_merge(self._data, network)
 
         # Enforce device_name length limit (max 7 chars for 20-col LCD).
@@ -269,6 +276,85 @@ class Config:
         with open(config_path, "w", encoding="utf-8") as f:
             yaml.dump(usb_keys, f, default_flow_style=False, allow_unicode=True)
         logger.info("USB keys saved to %s", config_path)
+
+    def save_hardware_config(self, hal_overrides: dict[str, str]) -> None:
+        """Save HAL module selections to custom/hardware.yaml.
+
+        Writes only the ``hal`` block to ``custom/hardware.yaml``.  This file
+        takes priority over ``config/hardware.yaml`` so that user selections
+        survive firmware updates without modifying the versioned defaults.
+
+        Args:
+            hal_overrides: Flat dict mapping component names to HAL type strings,
+                e.g. ``{"display": "lcd", "audio": "custom:my_audio.MyAudio"}``.
+        """
+        _ensure_custom_dir()
+        config_path = _CUSTOM_DIR / "hardware.yaml"
+        data: dict[str, Any] = {"hal": hal_overrides}
+        with open(config_path, "w", encoding="utf-8") as f:
+            yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
+        logger.info("Custom hardware config saved to %s", config_path)
+        self._load()
+
+    # Built-in HAL options per component (must match src/hal/ implementations).
+    _BUILTIN_HAL_OPTIONS: dict[str, list[str]] = {
+        "display": ["lcd", "mock"],
+        "audio": ["pygame", "mock"],
+        "input": ["numpad", "mock"],
+        "wires": ["gpio", "mock"],
+        "battery": ["pisugar", "none", "mock"],
+        "usb_detector": ["usb_detector", "mock"],
+        "led": ["gpio", "mock"],
+    }
+
+    def get_available_hal_modules(self, component: str) -> list[str]:
+        """Return available HAL implementations for a component.
+
+        Combines built-in type strings with ``custom:module.Class`` entries
+        discovered from ``custom/hal/*.py``.
+
+        Args:
+            component: HAL component name (e.g. ``"display"``).
+
+        Returns:
+            List of type strings, built-ins first, then custom entries sorted
+            alphabetically.
+        """
+        import ast
+
+        builtin = list(self._BUILTIN_HAL_OPTIONS.get(component, []))
+        custom_hal_dir = _CUSTOM_DIR / "hal"
+        custom_entries: list[str] = []
+
+        if custom_hal_dir.is_dir():
+            for py_file in sorted(custom_hal_dir.glob("*.py")):
+                if py_file.name.startswith("_"):
+                    continue
+                try:
+                    source = py_file.read_text(encoding="utf-8")
+                    tree = ast.parse(source, filename=str(py_file))
+                    for node in ast.walk(tree):
+                        if isinstance(node, ast.ClassDef):
+                            custom_entries.append(
+                                f"custom:{py_file.stem}.{node.name}"
+                            )
+                except Exception:
+                    logger.warning(
+                        "Could not parse custom HAL file %s", py_file, exc_info=True
+                    )
+
+        return builtin + custom_entries
+
+    def get_all_available_hal_modules(self) -> dict[str, list[str]]:
+        """Return available HAL implementations for all components.
+
+        Returns:
+            Dict mapping component names to lists of available type strings.
+        """
+        return {
+            component: self.get_available_hal_modules(component)
+            for component in self._BUILTIN_HAL_OPTIONS
+        }
 
     def get_customized_keys(self) -> set[str]:
         """Return dot-separated keys that have user overrides."""

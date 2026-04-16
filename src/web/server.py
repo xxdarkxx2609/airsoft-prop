@@ -181,6 +181,54 @@ def create_app(
         """Software update page."""
         return render_template("update.html", active="update")
 
+    @app.route("/hardware")
+    def hardware_page():
+        """Hardware module selection page."""
+        return render_template("hardware.html", active="hardware")
+
+    # ------------------------------------------------------------------
+    # Hardware API
+    # ------------------------------------------------------------------
+
+    @app.route("/api/hardware", methods=["GET"])
+    def api_hardware_get():
+        """Return current HAL selections and available modules per component."""
+        current_hal = config.get("hal", default={})
+        available = config.get_all_available_hal_modules()
+        return jsonify({
+            "current": current_hal,
+            "available": available,
+        })
+
+    @app.route("/api/hardware", methods=["POST"])
+    def api_hardware_set():
+        """Save HAL module selections to custom/hardware.yaml.
+
+        Expects JSON with a flat dict mapping component names to HAL type
+        strings, e.g. ``{"display": "lcd", "audio": "custom:my_audio.MyAudio"}``.
+        Changes take effect after a restart.
+        """
+        data = request.get_json()
+        if not data or not isinstance(data, dict):
+            return jsonify({"success": False, "message": "No data"}), 400
+
+        allowed_components = set(config._BUILTIN_HAL_OPTIONS.keys())
+        hal_overrides: dict[str, str] = {}
+        for component, value in data.items():
+            if component not in allowed_components:
+                return jsonify({
+                    "success": False,
+                    "message": f"Unknown HAL component: {component}",
+                }), 400
+            hal_overrides[component] = str(value)
+
+        config.save_hardware_config(hal_overrides)
+        logger.info("Hardware config updated via web interface: %s", hal_overrides)
+        return jsonify({
+            "success": True,
+            "message": "Hardware settings saved. Restart required for changes to take effect.",
+        })
+
     # ------------------------------------------------------------------
     # Captive portal detection
     # ------------------------------------------------------------------

@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="card">
+    <h2>Hardware Modules</h2>
+    <p>Select the HAL (Hardware Abstraction Layer) implementation for each component.
+       Custom modules placed in <code>custom/hal/</code> appear automatically in the dropdowns.
+       See <a href="https://github.com/your-repo/airsoft-prop/blob/main/docs/CONTRIBUTING.md" target="_blank">CONTRIBUTING.md</a>
+       for instructions on writing custom modules.</p>
+    <p class="hint">Changes take effect after a restart.</p>
+
+    <form id="hardware-form" onsubmit="saveHardware(event)">
+        <div id="hardware-selects">
+            <p>Loading...</p>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn">Save Hardware Settings</button>
+        </div>
+        <div id="hardware-message" class="message hidden"></div>
+    </form>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const COMPONENT_LABELS = {
+    display:      "Display",
+    audio:        "Audio",
+    input:        "Input",
+    wires:        "Wires (GPIO)",
+    battery:      "Battery / UPS",
+    usb_detector: "USB Detector",
+    led:          "Status LED",
+};
+
+let currentHal = {};
+
+async function loadHardware() {
+    const data = await apiGet("/api/hardware");
+    currentHal = data.current || {};
+    const available = data.available || {};
+
+    const container = document.getElementById("hardware-selects");
+    container.innerHTML = "";
+
+    for (const [component, options] of Object.entries(available)) {
+        const label = COMPONENT_LABELS[component] || component;
+        const current = currentHal[component] || options[0] || "";
+
+        const group = document.createElement("div");
+        group.className = "form-group";
+
+        const lbl = document.createElement("label");
+        lbl.setAttribute("for", `hal-${component}`);
+        lbl.textContent = label;
+        group.appendChild(lbl);
+
+        const sel = document.createElement("select");
+        sel.id = `hal-${component}`;
+        sel.dataset.component = component;
+
+        for (const opt of options) {
+            const o = document.createElement("option");
+            o.value = opt;
+            o.textContent = opt;
+            if (opt === current) o.selected = true;
+            sel.appendChild(o);
+        }
+        group.appendChild(sel);
+        container.appendChild(group);
+    }
+}
+
+async function saveHardware(event) {
+    event.preventDefault();
+    const selects = document.querySelectorAll("[data-component]");
+    const payload = {};
+    selects.forEach(sel => {
+        payload[sel.dataset.component] = sel.value;
+    });
+
+    const result = await apiPost("/api/hardware", payload);
+    showMessage("hardware-message", result.message, result.success ? "success" : "error");
+}
+
+loadHardware();
+</script>
+{% endblock %}

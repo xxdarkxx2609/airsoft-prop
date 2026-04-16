@@ -192,6 +192,92 @@ class MyMode(BaseMode):
 
 ---
 
+## Writing a Custom Game Mode (local, not upstreamed)
+
+If you want to run a mode only on your own device without modifying the project source, place it in `custom/modes/` instead of `src/modes/`. The auto-discovery mechanism scans both directories at startup.
+
+**Steps:**
+
+1. Create `custom/modes/my_mode.py` (same skeleton as above)
+2. Start the app — the mode appears in the main menu automatically
+3. No registration needed; `custom/modes/` is gitignored, so updates will not overwrite it
+
+```
+custom/
+└── modes/
+    └── my_mode.py      # Your custom game mode
+```
+
+---
+
+## Writing a Custom HAL Module
+
+You can replace any hardware component (display, audio, input, wires, battery, USB detector, LED) with your own implementation. Custom modules live in `custom/hal/` and are selected via the web interface.
+
+### Directory layout
+
+```
+custom/
+└── hal/
+    └── my_display.py   # Your custom HAL module
+```
+
+### Step-by-step
+
+1. **Create the file** — place a `.py` file in `custom/hal/`. The filename becomes part of the selector string.
+2. **Inherit from the correct base class** — import from `src/hal/base.py`:
+
+   | Component | Base class |
+   |-----------|------------|
+   | display | `DisplayBase` |
+   | audio | `AudioBase` |
+   | input | `InputBase` |
+   | wires | `WiresBase` |
+   | battery | `BatteryBase` |
+   | usb_detector | `UsbDetectorBase` |
+   | led | `LedBase` |
+
+3. **Implement all abstract methods** of the chosen base class.
+4. **Select it in the web interface** — open `http://<prop-ip>:8080/hardware`, choose your module from the dropdown (it shows as `custom:my_display.MyDisplay`), and save.
+5. **Restart the device** — HAL changes require a restart.
+
+The web interface only lists classes it finds by statically scanning your files. If your class does not appear, check that the file is in `custom/hal/` and that the class definition is at module level (not nested inside a function or `if` block).
+
+### Minimal example — custom display
+
+```python
+# custom/hal/my_display.py
+from src.hal.base import DisplayBase
+
+class MyDisplay(DisplayBase):
+    def init(self) -> None:
+        # Called once at startup — initialise your hardware here
+        pass
+
+    def write(self, row: int, col: int, text: str) -> None:
+        # Write text at (row, col) on your display
+        print(f"[{row},{col}] {text}")
+
+    def clear(self) -> None:
+        pass
+
+    def set_backlight(self, on: bool) -> None:
+        pass
+
+    def close(self) -> None:
+        pass
+```
+
+After placing this file in `custom/hal/`, open the web interface at `/hardware`. The option `custom:my_display.MyDisplay` will appear in the **Display** dropdown.
+
+### Notes
+
+- `custom/hal/` is gitignored — firmware updates will never delete your files.
+- If a custom module fails to load (import error, missing dependency), the app logs a WARNING and falls back to the mock implementation so the device remains usable.
+- You can read values from `config/hardware.yaml` or `custom/hardware.yaml` in your `__init__` by accepting a `Config` object — look at `src/hal/display_lcd.py` for an example.
+
+---
+
 ## Project Structure
 
 ```
@@ -209,10 +295,15 @@ airsoft-prop/
 │   └── build-release.yml        # Automated Windows release build
 ├── config/
 │   ├── default.yaml             # Shipped defaults (game & logging settings)
-│   ├── user.yaml                # User overrides (gitignored, auto-created)
-│   ├── usb_keys.yaml            # USB key registry (gitignored)
-│   ├── hardware.yaml            # HAL & pin configuration
+│   ├── hardware.yaml            # HAL & pin configuration (shipped defaults)
 │   └── network.yaml             # WiFi & web interface settings
+├── custom/                      # User-local overrides (gitignored, survives updates)
+│   ├── user.yaml                # Game/UI setting overrides (auto-created by web UI)
+│   ├── hardware.yaml            # HAL selection overrides (managed via /hardware page)
+│   ├── usb_keys.yaml            # USB key registry
+│   ├── hal/                     # Custom HAL modules (custom:module.Class syntax)
+│   ├── modes/                   # Custom game modes (auto-discovered)
+│   └── sounds/                  # Sound file overrides (same filename = override)
 ├── assets/sounds/               # WAV sound files
 ├── logs/                        # Log files (auto-created, gitignored)
 ├── src/
