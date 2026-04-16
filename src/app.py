@@ -130,19 +130,40 @@ class App:
         self.display.set_backlight(backlight)
 
     def _init_mock_hal(self) -> None:
-        """Initialize mock HAL for desktop testing."""
+        """Initialize mock HAL for desktop testing.
+
+        Uses ``PygameDisplay`` for a graphical LCD window when pygame-ce is
+        available. Falls back to the terminal-based ``MockDisplay`` otherwise.
+        The pygame display and ``MockInput`` share a key queue so that keys
+        pressed in the graphical window reach the application.
+        """
+        import queue as _queue
+
         from src.hal.audio_mock import MockAudio
         from src.hal.battery_none import NoBattery
-        from src.hal.display_mock import MockDisplay
         from src.hal.input_mock import MockInput
         from src.hal.usb_detector_mock import MockUsbDetector
         from src.hal.wires_mock import MockWires
-
         from src.hal.led_mock import MockLed
 
-        self.display = MockDisplay()
+        try:
+            import pygame  # noqa: F401  (availability check only)
+            from src.hal.display_mock_pygame import PygameDisplay
+
+            shared_key_queue: _queue.Queue[str] = _queue.Queue()
+            self.display = PygameDisplay(
+                key_queue=shared_key_queue,
+                on_quit=self.shutdown,
+            )
+            self.input = MockInput(external_key_queue=shared_key_queue)
+            logger.info("Mock HAL: using PygameDisplay")
+        except ImportError:
+            from src.hal.display_mock import MockDisplay
+            self.display = MockDisplay()
+            self.input = MockInput()
+            logger.info("Mock HAL: pygame not available, using MockDisplay (terminal)")
+
         self.audio = MockAudio()
-        self.input = MockInput()
         self.wires = MockWires()
         self.battery = NoBattery()
         self.usb_detector = MockUsbDetector()

@@ -25,18 +25,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pyinstaller
-          pip install PyYAML>=6.0.1 "pygame-ce>=2.5.3"
-
-      - name: Disable web server in config
-        run: |
-          python -c "
-          import yaml
-          with open('config/default.yaml', 'r') as f:
-              cfg = yaml.safe_load(f)
-          cfg.setdefault('web', {})['enabled'] = False
-          with open('config/default.yaml', 'w') as f:
-              yaml.dump(cfg, f, default_flow_style=False, sort_keys=False)
-          "
+          pip install PyYAML>=6.0.1 "pygame-ce>=2.5.3" "flask>=3.0.3" "werkzeug>=3.0.3"
 
       - name: Write VERSION file
         run: echo "${{ github.ref_name }}" | sed 's/^v//' > VERSION
@@ -74,6 +63,9 @@ jobs:
             - Windows 10/11
             - **Windows Terminal** oder **PowerShell** empfohlen (für korrekte Darstellung)
             - Keine Python-Installation nötig
+
+            ### Web-Interface
+            Nach dem Start erreichbar unter http://localhost:8080 (Konfiguration, Logs, System-Info)
 
             ### Konfiguration
             Einstellungen können in `config/default.yaml` angepasst werden (Timer, Lautstärke, etc.)

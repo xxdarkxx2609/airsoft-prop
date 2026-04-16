@@ -27,6 +27,10 @@ class MockInput(InputBase):
     to the standardized key strings expected by the application. Keys are
     buffered in a thread-safe queue so that ``get_key()`` is non-blocking.
 
+    An optional shared ``external_key_queue`` can be provided (e.g. from
+    ``PygameDisplay``) so that key events from the graphical window are
+    also consumed by ``get_key()``.
+
     Key mapping:
         0-9         -> '0'-'9'
         Enter       -> 'enter'
@@ -36,9 +40,20 @@ class MockInput(InputBase):
         .           -> 'dot'
     """
 
-    def __init__(self) -> None:
-        """Initialize internal state (not yet reading keys)."""
+    def __init__(
+        self,
+        external_key_queue: Optional["queue.Queue[str]"] = None,
+    ) -> None:
+        """Initialize internal state (not yet reading keys).
+
+        Args:
+            external_key_queue: Optional queue shared with an external input
+                source such as ``PygameDisplay``. Keys placed in this queue
+                are returned by ``get_key()`` alongside terminal keyboard
+                events.
+        """
         self._key_queue: queue.Queue[str] = queue.Queue()
+        self._external_key_queue: Optional[queue.Queue[str]] = external_key_queue
         self._running: bool = False
         self._thread: Optional[threading.Thread] = None
 
@@ -52,11 +67,19 @@ class MockInput(InputBase):
         logger.info("MockInput initialized (keyboard reader started)")
 
     def get_key(self) -> Optional[str]:
-        """Return the next buffered key, or None if the queue is empty.
+        """Return the next buffered key, or None if both queues are empty.
+
+        Checks the external key queue (e.g. pygame window) first, then
+        the internal terminal keyboard queue.
 
         Returns:
             A key string or None.
         """
+        if self._external_key_queue is not None:
+            try:
+                return self._external_key_queue.get_nowait()
+            except queue.Empty:
+                pass
         try:
             return self._key_queue.get_nowait()
         except queue.Empty:

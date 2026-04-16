@@ -18,7 +18,10 @@ a = Analysis(
     [str(project_root / "src" / "main.py")],
     pathex=[str(project_root)],
     binaries=[],
-    datas=[],
+    datas=[
+        (str(project_root / "src" / "web" / "templates"), "src/web/templates"),
+        (str(project_root / "src" / "web" / "static"), "src/web/static"),
+    ],
     hiddenimports=[
         # Game modes (dynamically imported via importlib)
         "src.modes.random_code",
@@ -28,23 +31,23 @@ a = Analysis(
         "src.modes.usb_key_cracker",
         # pygame internals
         "pygame.mixer",
+        "pygame.display",
+        "pygame.event",
+        "pygame.font",
+        "pygame.draw",
+        "pygame.transform",
+        "pygame.locals",
+        # Mock display (graphical LCD window)
+        "src.hal.display_mock_pygame",
+        # Web server modules (dynamically imported)
+        "src.web.server",
+        "src.web.wifi_manager",
+        "src.web.captive_portal",
     ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[str(project_root / "build" / "hook-runtime-mock.py")],
     excludes=[
-        # Web server (not needed in standalone)
-        "flask",
-        "werkzeug",
-        "jinja2",
-        "markupsafe",
-        "blinker",
-        "itsdangerous",
-        "click",
-        "src.web",
-        "src.web.server",
-        "src.web.wifi_manager",
-        "src.web.captive_portal",
         # RPi-only libraries
         "RPi",
         "RPi.GPIO",
@@ -70,7 +73,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=True,  # Terminal needed for mock display
+    console=True,  # Keep console open for log output
     icon=None,
 )
 
