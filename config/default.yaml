@@ -32,6 +32,8 @@ tournament:
   mode: random_code
   pin: '0000'
   settings: {}
+system:
+  service_name: airsoft-prop
 modes:
   random_code:
     default_digits: 10
