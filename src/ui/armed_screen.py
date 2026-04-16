@@ -22,7 +22,7 @@ logger = get_logger(__name__)
 
 # Beep interval thresholds (seconds remaining -> interval in seconds).
 # The beep sound is ~400ms (100ms USB padding + 300ms tone), so
-# intervals must stay above 500ms to avoid overlap.
+# intervals must stay at or above 500ms to avoid overlap.
 _BEEP_INTERVAL_NORMAL: float = 5.0
 _BEEP_INTERVAL_30S: float = 2.0
 _BEEP_INTERVAL_10S: float = 0.8
