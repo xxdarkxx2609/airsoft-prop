@@ -6,10 +6,10 @@ This directory contains WAV sound files used by the Airsoft Prop.
 
 | File           | Description                                    | Recommended Duration |
 |----------------|------------------------------------------------|---------------------|
-| beep.wav       | Timer tick beep                                | ~0.1s               |
+| beep.wav       | Timer tick beep                                | ~0.3s               |
 | planted.wav    | "Prop has been planted" voice line             | ~2s                 |
-| explosion.wav  | Explosion effect on detonation                 | ~3s                 |
-| siren.wav      | Alarm siren loop after detonation              | ~5-10s              |
+| explosion.wav  | Explosion effect on Game End                   | ~3s                 |
+| siren.wav      | Alarm siren loop after Game End                | ~5-10s              |
 | defused.wav    | "Prop has beend defused" voice line            | ~2s                 |
 | wrong.wav      | error sound in + modes                         | ~0.5s               |
 
@@ -27,4 +27,12 @@ You can find free sound effects at:
 - https://soundbible.com
 - https://mixkit.co/free-sound-effects/
 
-Place the WAV files in this directory with the exact filenames listed above.
+## License
+
+for license of delivered files see LICENSE.md
+
+## Custom Sounds
+
+If you want to use custom sounds, place them under /custom/sounds directory with the same name as the original.
+
+Soundfiles can also be uploaded and managed via the Webinterface
