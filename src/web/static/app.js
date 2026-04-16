@@ -758,14 +758,25 @@ async function restartService() {
             document.getElementById("update-status").innerHTML =
                 '<p style="color: var(--warning)">Service is restarting. This page will reload automatically...</p>';
             btn.classList.add("hidden");
-            // Poll until the server is back
-            setTimeout(function pollReady() {
+            // Poll until the server is back (start immediately, check every 1s, timeout after 60s)
+            let attempts = 0;
+            const maxAttempts = 60;
+            const pollInterval = setInterval(() => {
+                attempts++;
                 fetch("/api/system").then(() => {
+                    clearInterval(pollInterval);
                     window.location.reload();
                 }).catch(() => {
-                    setTimeout(pollReady, 2000);
+                    if (attempts >= maxAttempts) {
+                        clearInterval(pollInterval);
+                        document.getElementById("update-status").innerHTML =
+                            '<p style="color: var(--danger)">Restart timed out. Please refresh the page manually.</p>';
+                        btn.classList.remove("hidden");
+                        btn.disabled = false;
+                        btn.textContent = "Restart Service";
+                    }
                 });
-            }, 3000);
+            }, 1000);
         } else {
             showMessage("update-message", result.message, "error");
             btn.disabled = false;

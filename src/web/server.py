@@ -1278,6 +1278,19 @@ def create_app(
 
         import subprocess
         try:
+            # Test if sudo works without password prompt
+            result = subprocess.run(
+                ["sudo", "-n", "systemctl", "status", "airsoft-prop"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if result.returncode != 0:
+                return jsonify({
+                    "success": False,
+                    "message": "Cannot restart service: sudo access denied or service not found.",
+                }), 500
+
             # Delay the restart by 1 second so Flask can send the response
             # before systemd kills this process.
             subprocess.Popen(
@@ -1290,6 +1303,8 @@ def create_app(
                 "success": True,
                 "message": "Service is restarting...",
             })
+        except subprocess.TimeoutExpired:
+            return jsonify({"success": False, "message": "Timeout testing sudo access."}), 500
         except Exception as e:
             return jsonify({"success": False, "message": str(e)}), 500
 
