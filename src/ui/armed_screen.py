@@ -52,7 +52,7 @@ class ArmedScreen(BaseScreen):
 
     def on_enter(self) -> None:
         """Start the armed phase: play the planted sound and init timers."""
-        now = time.time()
+        now = time.monotonic()
         self.last_tick_time = now
         self.last_beep_time = now
         self.blink_state = True
@@ -89,7 +89,7 @@ class ArmedScreen(BaseScreen):
             logger.error("Armed screen rendered without context or mode")
             return
 
-        now = time.time()
+        now = time.monotonic()
 
         # --- 1-second countdown tick ---
         elapsed_since_tick = now - self.last_tick_time

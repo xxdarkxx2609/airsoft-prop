@@ -93,7 +93,7 @@ class RandomCodePlusMode(RandomCodeMode):
             else:
                 # Wrong digit — apply time penalty
                 context.remaining_seconds = max(0, context.remaining_seconds - penalty)
-                context.custom_data["penalty_flash_until"] = time.time() + _FLASH_DURATION
+                context.custom_data["penalty_flash_until"] = time.monotonic() + _FLASH_DURATION
                 context.custom_data["last_penalty"] = penalty
                 context.custom_data["penalty_triggered"] = True
                 logger.info(
@@ -110,7 +110,7 @@ class RandomCodePlusMode(RandomCodeMode):
 
     def _is_flashing(self, context: GameContext) -> bool:
         """Check if the penalty flash is currently active."""
-        return time.time() < context.custom_data.get("penalty_flash_until", 0.0)
+        return time.monotonic() < context.custom_data.get("penalty_flash_until", 0.0)
 
     def _penalty_text(self, context: GameContext) -> str:
         """Build the penalty flash text, e.g. 'WRONG! -10s'."""

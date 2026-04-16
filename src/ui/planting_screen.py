@@ -162,7 +162,7 @@ class PlantingScreen(BaseScreen):
             Line 3: Hold ENTER  Xs
         """
         duration = self._config.duration
-        now = time.time()
+        now = time.monotonic()
 
         if self._hold_active:
             # Check for key release
@@ -243,7 +243,7 @@ class PlantingScreen(BaseScreen):
         absence of Enter events (detected in render) cancels planting.
         """
         if key == "enter":
-            now = time.time()
+            now = time.monotonic()
             self._last_enter_time = now
 
             if not self._hold_active:

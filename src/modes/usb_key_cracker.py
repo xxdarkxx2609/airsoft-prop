@@ -167,7 +167,7 @@ class UsbKeyCrackerMode(BaseMode):
         order = list(range(digits))
         random.shuffle(order)
 
-        now = time.time()
+        now = time.monotonic()
         context.custom_data["cracking_active"] = True
         context.custom_data["cracking_start"] = now
         context.custom_data["cracked_indices"] = []
@@ -181,7 +181,7 @@ class UsbKeyCrackerMode(BaseMode):
         Returns:
             DEFUSED when all digits are cracked.
         """
-        now = time.time()
+        now = time.monotonic()
         last = context.custom_data["last_crack_time"]
         cracked = context.custom_data["cracked_indices"]
         order = context.custom_data["crack_order"]
