@@ -80,7 +80,12 @@ run_with_spinner() {
     else
         local exit_code=$?
         stop_spinner
-        echo -e "       ${RED}✗ ${description} FAILED${NC}"
+        if [[ $exit_code -eq 124 ]]; then
+            echo -e "       ${RED}✗ ${description} TIMEOUT (exceeded max wait time)${NC}"
+            echo -e "       ${RED}This usually indicates a network issue. Check ${LOGFILE} for details.${NC}"
+        else
+            echo -e "       ${RED}✗ ${description} FAILED${NC}"
+        fi
         echo -e "       ${RED}Check ${LOGFILE} for details.${NC}"
         exit "$exit_code"
     fi
@@ -153,23 +158,47 @@ info "Logging verbose output to ${LOGFILE}"
 
 step "Installing system packages"
 
+# Attempt apt-get update with timeout and retry
 run_with_spinner "Updating package lists" \
-    apt-get update
+    bash -c '
+        for attempt in 1 2 3; do
+            echo "[ATTEMPT $attempt/3] apt-get update..."
+            if timeout 120 apt-get update \
+                -o APT::Acquire::Timeout=30 \
+                -o APT::Acquire::ForceIPv4=true \
+                -o APT::Acquire::http::Timeout=30 \
+                -o Acquire::ForceIPv4=true; then
+                echo "[SUCCESS] Package lists updated"
+                exit 0
+            fi
+            echo "[TIMEOUT/FAILED] Attempt $attempt, retrying in 5 seconds..."
+            sleep 5
+        done
+        echo "[FAILED] apt-get update failed after 3 attempts"
+        exit 1
+    '
 
 run_with_spinner "Installing dependencies (python3, git, i2c-tools, SDL2, hostapd, dnsmasq, ...)" \
-    apt-get install -y \
-    python3 \
-    python3-venv \
-    python3-pip \
-    python3-dev \
-    git \
-    i2c-tools \
-    libsdl2-mixer-2.0-0 \
-    libsdl2-2.0-0 \
-    libevdev-dev \
-    hostapd \
-    dnsmasq \
-    network-manager
+    bash -c '
+        timeout 600 apt-get install -y \
+            --no-install-recommends \
+            -o APT::Acquire::Timeout=30 \
+            -o APT::Acquire::ForceIPv4=true \
+            -o APT::Acquire::http::Timeout=30 \
+            -o Acquire::ForceIPv4=true \
+            python3 \
+            python3-venv \
+            python3-pip \
+            python3-dev \
+            git \
+            i2c-tools \
+            libsdl2-mixer-2.0-0 \
+            libsdl2-2.0-0 \
+            libevdev-dev \
+            hostapd \
+            dnsmasq \
+            network-manager
+    '
 
 # Disable hostapd/dnsmasq system services — the application manages them
 # directly as subprocesses with custom config files.
@@ -291,10 +320,18 @@ if [[ -d "$INSTALL_DIR/.git" ]]; then
     info "Existing installation found, updating..."
     cd "$INSTALL_DIR"
     run_with_spinner "Pulling latest changes" \
-        sudo -u pi git pull origin main || warn "Git pull failed, continuing with existing code"
+        timeout 120 sudo -u pi git \
+            -c http.connectTimeout=30 \
+            -c http.lowSpeedLimit=1024 \
+            -c http.lowSpeedTime=30 \
+            pull origin main || warn "Git pull failed, continuing with existing code"
 else
     run_with_spinner "Cloning repository to ${INSTALL_DIR}" \
-        sudo -u pi git clone "$REPO_URL" "$INSTALL_DIR" || {
+        timeout 180 sudo -u pi git \
+            -c http.connectTimeout=30 \
+            -c http.lowSpeedLimit=1024 \
+            -c http.lowSpeedTime=30 \
+            clone "$REPO_URL" "$INSTALL_DIR" || {
         warn "Git clone failed. Please copy the project files to $INSTALL_DIR manually."
         mkdir -p "$INSTALL_DIR"
     }
@@ -314,13 +351,19 @@ if [[ ! -d "$VENV_DIR" ]]; then
 fi
 
 run_with_spinner "Upgrading pip" \
-    sudo -u pi "$VENV_DIR/bin/pip" install --no-cache-dir --upgrade pip
+    timeout 120 sudo -u pi "$VENV_DIR/bin/pip" \
+        --default-timeout=30 \
+        install --no-cache-dir --upgrade pip
 
 run_with_spinner "Installing Python packages (requirements.txt)" \
-    sudo -u pi "$VENV_DIR/bin/pip" install --no-cache-dir -r requirements.txt
+    timeout 300 sudo -u pi "$VENV_DIR/bin/pip" \
+        --default-timeout=30 \
+        install --no-cache-dir -r requirements.txt
 
 run_with_spinner "Installing Pi-specific packages (LCD, GPIO, I2C, evdev)" \
-    sudo -u pi "$VENV_DIR/bin/pip" install --no-cache-dir -r requirements-pi.txt
+    timeout 300 sudo -u pi "$VENV_DIR/bin/pip" \
+        --default-timeout=30 \
+        install --no-cache-dir -r requirements-pi.txt
 
 # ---------------------------------------------------------------------------
 # Step 6: User groups
