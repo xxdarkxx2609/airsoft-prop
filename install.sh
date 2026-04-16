@@ -5,6 +5,10 @@
 # ============================================================================
 set -euo pipefail
 
+# Disable output buffering to ensure all logs are captured immediately
+export PYTHONUNBUFFERED=1
+export APT_LISTCHANGES_FRONTEND=none
+
 INSTALL_DIR="/home/pi/airsoft-prop"
 VENV_DIR="$INSTALL_DIR/venv"
 SERVICE_NAME="airsoft-prop"
@@ -66,27 +70,68 @@ stop_spinner() {
     SPINNER_PID=""
 }
 
-# Run a command with a spinner, redirecting output to the log file.
+# Run a command with a spinner, redirecting output to the log file reliably.
 # Usage: run_with_spinner "Description" command arg1 arg2 ...
 run_with_spinner() {
     local description="$1"
     shift
     echo -e "       ${description}..."
     echo "=== $(date '+%H:%M:%S') $description ===" >> "$LOGFILE"
+    
+    # Store initial log size for verification
+    local initial_size=$(stat -f%z "$LOGFILE" 2>/dev/null || stat -c%s "$LOGFILE" 2>/dev/null || echo "0")
+    
     start_spinner
-    if "$@" >> "$LOGFILE" 2>&1; then
-        stop_spinner
+    
+    # Run command, capture output to log with unbuffered line-by-line writes
+    # Using stdbuf to force line-buffering, ensuring no output is lost
+    local cmd_output_file="/tmp/airsoft-cmd-$$-output.txt"
+    {
+        # Try stdbuf first (better buffering control), fall back to direct execution
+        if command -v stdbuf &>/dev/null; then
+            stdbuf -oL -eL "$@" 
+        else
+            "$@"
+        fi
+    } > "$cmd_output_file" 2>&1
+    
+    local exit_code=$?
+    
+    # Write captured output to logfile, ensuring each line is flushed
+    if [[ -f "$cmd_output_file" ]]; then
+        while IFS= read -r line; do
+            echo "$line" >> "$LOGFILE"
+        done < "$cmd_output_file"
+        rm -f "$cmd_output_file"
+    fi
+    
+    # Force filesystem sync to guarantee data is written
+    sync "$LOGFILE" 2>/dev/null || true
+    
+    stop_spinner
+    
+    if [[ $exit_code -eq 0 ]]; then
+        # Verify logfile grew (sanity check for logging issues)
+        local final_size=$(stat -f%z "$LOGFILE" 2>/dev/null || stat -c%s "$LOGFILE" 2>/dev/null || echo "0")
+        if [[ $final_size -eq $initial_size ]] && [[ "$description" =~ (Installing|Updating|Pulling|Cloning|pip) ]]; then
+            echo -e "       ${YELLOW}⚠ WARNING: Command succeeded but little output was logged!${NC}"
+            echo "[WARNING] $description completed but minimal logfile growth - check network" >> "$LOGFILE"
+        fi
         echo -e "       ${GREEN}✓${NC} ${description} done"
     else
-        local exit_code=$?
-        stop_spinner
+        # Append failure marker to log
+        echo "" >> "$LOGFILE"
+        echo "=== $(date '+%H:%M:%S') COMMAND FAILED ===" >> "$LOGFILE"
+        echo "Exit code: $exit_code" >> "$LOGFILE"
+        sync "$LOGFILE" 2>/dev/null || true
+        
         if [[ $exit_code -eq 124 ]]; then
-            echo -e "       ${RED}✗ ${description} TIMEOUT (exceeded max wait time)${NC}"
-            echo -e "       ${RED}This usually indicates a network issue. Check ${LOGFILE} for details.${NC}"
+            echo -e "       ${RED}✗ ${description} TIMEOUT${NC}"
         else
-            echo -e "       ${RED}✗ ${description} FAILED${NC}"
+            echo -e "       ${RED}✗ ${description} FAILED (exit code: $exit_code)${NC}"
         fi
-        echo -e "       ${RED}Check ${LOGFILE} for details.${NC}"
+        echo -e "       ${RED}Last output from log:${NC}"
+        tail -8 "$LOGFILE" | sed 's/^/         /'
         exit "$exit_code"
     fi
 }
@@ -182,10 +227,12 @@ run_with_spinner "Installing dependencies (python3, git, i2c-tools, SDL2, hostap
     bash -c '
         timeout 600 apt-get install -y \
             --no-install-recommends \
+            --no-show-upgraded \
             -o APT::Acquire::Timeout=30 \
             -o APT::Acquire::ForceIPv4=true \
             -o APT::Acquire::http::Timeout=30 \
             -o Acquire::ForceIPv4=true \
+            -o APT::Progress::Fancy="1" \
             python3 \
             python3-venv \
             python3-pip \
@@ -517,6 +564,29 @@ fi
 # ---------------------------------------------------------------------------
 # Done!
 # ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Done!
+# ---------------------------------------------------------------------------
+
+# Diagnostic: Check logfile integrity
+check_log_integrity() {
+    local logsize=$(stat -f%z "$LOGFILE" 2>/dev/null || stat -c%s "$LOGFILE" 2>/dev/null || echo "0")
+    local error_count=$(grep -c "FAILED\|ERROR\|Timeout\|error" "$LOGFILE" 2>/dev/null || echo "0")
+    local success_count=$(grep -c "SUCCESS\|done\|installed\|✓" "$LOGFILE" 2>/dev/null || echo "0")
+    
+    echo "Installation log diagnostics:" >> "$LOGFILE"
+    echo "  - Log file size: $logsize bytes" >> "$LOGFILE"
+    echo "  - Lines with [SUCCESS/done]: $success_count" >> "$LOGFILE"
+    echo "  - Lines with [FAILED/ERROR]: $error_count" >> "$LOGFILE"
+    
+    # Warn if log is suspiciously small
+    if [[ $logsize -lt 10000 ]]; then
+        echo "[WARNING] Log file is very small ($logsize bytes) - possible logging issue" >> "$LOGFILE"
+        warn "Log file seems small (${logsize} bytes). Check for network issues."
+    fi
+}
+check_log_integrity
 
 echo ""
 echo "========================================" >> "$LOGFILE"
