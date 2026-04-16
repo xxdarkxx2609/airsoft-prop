@@ -141,7 +141,7 @@ Battery information is shown in three places:
 Start with a freshly flashed **Raspberry Pi OS Lite** (Bookworm) with internet access. Then run the install script:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/xxdarkxx2609/RPi-Airsoft-Prop/main/install.sh -o install.sh
+curl -fsSL https://raw.githubusercontent.com/xxdarkxx2609/airsoft-prop/main/install.sh -o install.sh
 chmod +x install.sh
 sudo ./install.sh
 ```
@@ -149,7 +149,7 @@ sudo ./install.sh
 Or with `wget`:
 
 ```bash
-wget -qO install.sh https://raw.githubusercontent.com/xxdarkxx2609/RPi-Airsoft-Prop/main/install.sh
+wget -qO install.sh https://raw.githubusercontent.com/xxdarkxx2609/airsoft-prop/main/install.sh
 chmod +x install.sh
 sudo ./install.sh
 ```
