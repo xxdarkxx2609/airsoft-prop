@@ -47,19 +47,16 @@ Dieses Projekt ist ein **funktionsloses Requisit** (Prop) für Airsoft- und Mils
 
 | Component | Description | Approx. Price |
 |-----------|-------------|---------------|
-| Raspberry Pi Zero WH | Main controller (with pre-soldered headers) | ~€15 |
-| 20×4 LCD HD44780 + I2C Backpack | Display (PCF8574, address 0x27) | ~€6 |
-| USB Numpad | Player input | ~€8 |
-| PAM8403 Amplifier | Audio amplifier module | ~€2 |
-| Small Speaker (8Ω, 2W) | Audio output | ~€3 |
-| 3× Toggle Switches or Banana Plugs | "Wires" for Cut the Wire mode | ~€5 |
-| 3× 10kΩ Resistors | Pull-down resistors for wire GPIOs | ~€1 |
+| Raspberry Pi Zero WH or Zero 2 W | Main controller (with pre-soldered headers) | ~€20-30 |
+| 20×4 LCD HD44780 + I2C Backpack | Display (PCF8574, address 0x27) | ~€8 |
+| USB Numpad | Player input | ~€9 |
+| USB Speaker | Portable audio output (small, 2–5W) | ~€13 |
 | LED + 330Ω Resistor | Beep indicator LED (optional) | ~€1 |
-| Micro-USB OTG Adapter | Connect USB numpad to Pi Zero | ~€3 |
-| Micro-SD Card (16 GB+) | OS storage | ~€8 |
-| PiSugar 3 UPS HAT | Battery (1200 mAh, USB-C charging, ~2–3 h runtime) | ~€35–40 |
-| Ammo Box or Pelican Case | Enclosure | ~€10–20 |
-| **Total** | | **~€85–110** |
+| Micro-USB OTG Adapter | Connect USB numpad to Pi Zero | ~€4 |
+| Micro-SD Card (16 GB+) | OS storage | ~€11 |
+| PiSugar 3 UPS HAT (optional) | Battery (1200 mAh, USB-C charging, ~2–3 h runtime) | ~€42 |
+| Ammo Box or Pelican Case | Enclosure | ~€18 |
+| **Total** | | **~€126–145** |
 
 ---
 
@@ -74,28 +71,13 @@ LCD Display (I2C):
   Pi Pin 2  (5V)         ──→  LCD VCC
   Pi Pin 6  (GND)        ──→  LCD GND
 
-Audio Output (PWM):
-  Pi Pin 12 (GPIO18)     ──→  PAM8403 Input
-  PAM8403 Output         ──→  Speaker (8Ω)
-  Pi Pin 6  (GND)        ──→  PAM8403 GND
-  Pi Pin 2  (5V)         ──→  PAM8403 VCC
+USB Peripherals (via USB Hub + Micro-USB OTG):
+  USB Numpad             ──→  USB Hub
+  USB Speaker            ──→  USB Hub
+  USB Hub                ──→  Pi Micro-USB OTG Port
 
-Wire 1 — Defuse (Red):
-  Pi Pin 11 (GPIO17)     ──→  Switch ──→ 3.3V (Pin 1)
-                         └──→ 10kΩ  ──→ GND (Pin 9)
-
-Wire 2 — Explode (Blue):
-  Pi Pin 13 (GPIO27)     ──→  Switch ──→ 3.3V (Pin 1)
-                         └──→ 10kΩ  ──→ GND (Pin 9)
-
-Wire 3 — Halve Timer (Green):
-  Pi Pin 15 (GPIO22)     ──→  Switch ──→ 3.3V (Pin 1)
-                         └──→ 10kΩ  ──→ GND (Pin 14)
-
-Beep Indicator LED:
+Beep Indicator LED (optional):
   Pi Pin 18 (GPIO24)     ──→  Resistor (330Ω) ──→ LED ──→ GND
-
-Wire logic: cable inserted = HIGH (intact), cable pulled = LOW (cut)
 ```
 
 ---
@@ -498,7 +480,7 @@ tail -f /home/pi/airsoft-prop/logs/prop.log
 
 **No display output:** Check I2C wiring and make sure I2C is enabled (`sudo raspi-config` → Interface Options → I2C). Verify the I2C address matches `config/hardware.yaml` (default: `0x27`).
 
-**No audio:** Check PWM audio is enabled in `/boot/firmware/config.txt` (`dtoverlay=pwm`). Verify the speaker and amplifier wiring.
+**No audio:** Check that the USB speaker is connected via the USB hub and recognized by the system. Test with `aplay -l` or `pactl list short sinks` on the Pi.
 
 **Cannot connect to web interface:** Press **8** on the numpad to view the current IP address on the status screen. Make sure your phone and the Pi are on the same network.
 
