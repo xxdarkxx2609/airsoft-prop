@@ -501,6 +501,7 @@ def create_app(
         """Get current configuration."""
         return jsonify({
             "game": {
+                "device_name": config.get("game", "device_name", default="Prop"),
                 "default_timer": config.get("game", "default_timer", default=300),
                 "min_timer": config.get("game", "min_timer", default=30),
                 "max_timer": config.get("game", "max_timer", default=5999),
