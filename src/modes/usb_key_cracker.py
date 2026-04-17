@@ -23,6 +23,8 @@ from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
+_DEFAULT_CRACK_INTERVAL: float = 2.5
+
 
 def _format_timer(seconds: int) -> str:
     """Format seconds as MM:SS string."""
@@ -34,9 +36,6 @@ def _center(text: str, width: int = 20) -> str:
     """Center text within the given width."""
     return text.center(width)
 
-
-# Seconds between each digit being cracked.
-_CRACK_INTERVAL: float = 2.5
 
 
 class UsbKeyCrackerMode(BaseMode):
@@ -84,7 +83,7 @@ class UsbKeyCrackerMode(BaseMode):
                 option_type=SetupOptionType.RANGE,
                 default=8,
                 min_val=4,
-                max_val=12,
+                max_val=20,
                 step=1,
                 large_step=4,
             ),
@@ -105,6 +104,7 @@ class UsbKeyCrackerMode(BaseMode):
         context.custom_data["cracked_indices"] = []  # ordered list of cracked positions
         context.custom_data["crack_order"] = []       # random order to crack digits
         context.custom_data["last_crack_time"] = 0.0
+        context.custom_data.setdefault("crack_interval", _DEFAULT_CRACK_INTERVAL)
 
         logger.info(
             "USB Key Cracker armed: %d digits, target=%s", digits, target
@@ -187,7 +187,8 @@ class UsbKeyCrackerMode(BaseMode):
         order = context.custom_data["crack_order"]
         target = context.custom_data["target_code"]
 
-        if now - last >= _CRACK_INTERVAL and len(cracked) < len(target):
+        crack_interval = context.custom_data.get("crack_interval", _DEFAULT_CRACK_INTERVAL)
+        if now - last >= crack_interval and len(cracked) < len(target):
             next_idx = order[len(cracked)]
             cracked.append(next_idx)
             context.custom_data["last_crack_time"] = now
@@ -226,7 +227,7 @@ class UsbKeyCrackerMode(BaseMode):
             else:
                 parts.append(str(random.randint(0, 9)))
 
-        return " ".join(parts)
+        return "".join(parts)
 
     def _build_progress_info(self, context: GameContext) -> tuple[str, str]:
         """Build cracking progress bar and status text.
@@ -245,7 +246,8 @@ class UsbKeyCrackerMode(BaseMode):
         filled = int(done / total * bar_width) if total > 0 else 0
         bar = "[" + "#" * filled + "." * (bar_width - filled) + "]"
 
-        remaining_time = (total - done) * _CRACK_INTERVAL
+        crack_interval = context.custom_data.get("crack_interval", _DEFAULT_CRACK_INTERVAL)
+        remaining_time = (total - done) * crack_interval
         return bar + f" {pct:>2}%", f"Cracking... {int(remaining_time)}s"
 
     def render(self, display: object, remaining_seconds: int, context: GameContext) -> None:

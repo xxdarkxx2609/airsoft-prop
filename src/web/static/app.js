@@ -238,6 +238,7 @@ async function loadConfig() {
         setField("timer-step", config.game.timer_step);
         setField("default-digits", config.modes.random_code.default_digits);
         setField("max-code-length", config.modes.set_code.max_code_length);
+        setField("crack-interval", config.modes.usb_key_cracker.crack_interval);
         setField("penalty-seconds", config.game.penalty_seconds);
         setField("volume", config.audio.volume);
         document.getElementById("volume-value").textContent = config.audio.volume;

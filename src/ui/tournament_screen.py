@@ -246,6 +246,9 @@ class TournamentScreen(BaseScreen):
         context.custom_data["penalty_seconds"] = self.app.config.get(
             "game", "penalty_seconds", default=10,
         )
+        context.custom_data["crack_interval"] = self.app.config.get(
+            "modes", "usb_key_cracker", "crack_interval", default=2.5,
+        )
 
         self.app.selected_mode = mode
         self.app.game_context = context

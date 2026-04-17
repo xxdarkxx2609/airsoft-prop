@@ -514,6 +514,9 @@ def create_app(
                 "set_code": {
                     "max_code_length": config.get("modes", "set_code", "max_code_length", default=10),
                 },
+                "usb_key_cracker": {
+                    "crack_interval": config.get("modes", "usb_key_cracker", "crack_interval", default=2.5),
+                },
             },
             "audio": {
                 "volume": config.get("audio", "volume", default=0.8),

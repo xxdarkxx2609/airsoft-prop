@@ -41,3 +41,5 @@ modes:
     min_digits: 4
   set_code:
     max_code_length: 10
+  usb_key_cracker:
+    crack_interval: 2.5

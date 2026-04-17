@@ -414,6 +414,9 @@ class SetupScreen(BaseScreen):
         context.custom_data["penalty_seconds"] = self.app.config.get(
             "game", "penalty_seconds", default=10,
         )
+        context.custom_data["crack_interval"] = self.app.config.get(
+            "modes", "usb_key_cracker", "crack_interval", default=2.5,
+        )
 
         # Attach context to the app and notify the mode
         self.app.game_context = context
