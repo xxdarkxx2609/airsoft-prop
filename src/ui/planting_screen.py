@@ -167,7 +167,7 @@ class PlantingScreen(BaseScreen):
         if self._hold_active:
             # Check for key release
             if now - self._last_enter_time > HOLD_TIMEOUT:
-                self._cancel_planting()
+                self._reset_hold()
                 return
 
             # Accumulate elapsed time
@@ -221,7 +221,7 @@ class PlantingScreen(BaseScreen):
             if self._input:
                 self._input = self._input[:-1]
             else:
-                self._cancel_planting()
+                self._go_back()
             return
 
         if key in "0123456789" and len(self._input) < len(self._code):
@@ -252,11 +252,11 @@ class PlantingScreen(BaseScreen):
                 self._elapsed_held = 0.0
                 logger.debug("Timed planting hold started")
         elif key == "backspace":
-            self._cancel_planting()
+            self._go_back()
         else:
-            # Any non-Enter key cancels the hold
+            # Any non-Enter key resets the hold progress
             if self._hold_active:
-                self._cancel_planting()
+                self._reset_hold()
 
     # -- transitions ----------------------------------------------------------
 
@@ -265,10 +265,15 @@ class PlantingScreen(BaseScreen):
         logger.info("Planting complete, transitioning to armed")
         self.app.screen_manager.switch_to("armed")
 
-    def _cancel_planting(self) -> None:
-        """Cancel planting and return to setup or tournament screen."""
+    def _reset_hold(self) -> None:
+        """Reset hold progress without leaving the planting screen."""
         self._hold_active = False
         self._elapsed_held = 0.0
+        logger.debug("Planting hold reset")
+
+    def _go_back(self) -> None:
+        """Reset hold state and return to setup or tournament screen."""
+        self._reset_hold()
         self._input = ""
         if self.app.config.is_tournament_enabled():
             logger.debug("Planting cancelled, returning to tournament")
