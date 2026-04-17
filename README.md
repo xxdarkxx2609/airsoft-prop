@@ -4,6 +4,16 @@ A Raspberry Pi Zero WH-based game prop for Airsoft and Milsim events. Features m
 
 ---
 
+## License
+
+This project is **source-available** and licensed for **private, non-commercial use only**.
+
+Any derived work must be published publicly and must clearly reference this
+original repository.
+
+Commercial use requires explicit written permission from the author.
+See the LICENSE file for details.
+
 ## Disclaimer
 
 This project is a **non-functional prop** for airsoft and milsim games. It contains no explosives, pyrotechnics, or any dangerous materials. It is a Raspberry Pi running software that displays a countdown timer on an LCD screen and plays sounds through a speaker.
@@ -48,7 +58,7 @@ Dieses Projekt ist ein **funktionsloses Requisit** (Prop) für Airsoft- und Mils
 | Component | Description | Approx. Price |
 |-----------|-------------|---------------|
 | Raspberry Pi Zero WH or Zero 2 W | Main controller (with pre-soldered headers) | ~€20-30 |
-| 20×4 LCD HD44780 + I2C Backpack | Display (PCF8574, address 0x27) | ~€8 |
+| 20×4 LCD HD44780 + I2C Backpack + Logic Level Converter TXS0108E| Display (PCF8574, address 0x27) | ~€13 |
 | USB Numpad | Player input | ~€9 |
 | USB Speaker | Portable audio output (small, 2–5W) | ~€13 |
 | LED + 330Ω Resistor | Beep indicator LED (optional) | ~€1 |
@@ -56,7 +66,7 @@ Dieses Projekt ist ein **funktionsloses Requisit** (Prop) für Airsoft- und Mils
 | Micro-SD Card (16 GB+) | OS storage | ~€11 |
 | PiSugar 3 UPS HAT (optional) | Battery (1200 mAh, USB-C charging, ~2–3 h runtime) | ~€42 |
 | Ammo Box or Pelican Case | Enclosure | ~€18 |
-| **Total** | | **~€126–145** |
+| **Total** | | **~€89-131** |
 
 ---
 
