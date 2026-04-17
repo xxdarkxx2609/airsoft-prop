@@ -195,8 +195,9 @@ class MenuScreen(BaseScreen):
     def _do_exit(self) -> None:
         """Display a restart hint and shut down the application.
 
-        Writes the hint directly to the display before calling shutdown so
-        the message remains visible after the main loop exits.
+        Writes the hint directly to the display before calling shutdown.
+        Passes clear_display=False to preserve the restart message on the LCD
+        after the service stops, with backlight remaining on.
         """
         service_name = self.app.config.get("system", "service_name", default="airsoft-prop")
         logger.info("User requested service exit via menu")
@@ -206,7 +207,7 @@ class MenuScreen(BaseScreen):
             "systemctl start",
             service_name,
         ])
-        self.app.shutdown()
+        self.app.shutdown(clear_display=False)
 
     def _select_mode(self, index: int) -> None:
         """Select a game mode by index and switch to the setup screen.

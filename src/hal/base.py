@@ -61,8 +61,14 @@ class DisplayBase(ABC):
         """
 
     @abstractmethod
-    def shutdown(self) -> None:
-        """Clean up display resources."""
+    def shutdown(self, clear_display: bool = True) -> None:
+        """Clean up display resources.
+
+        Args:
+            clear_display: If True (default), clear the display and turn off
+                backlight before closing. If False, preserve the current display
+                content and backlight state (for graceful exit messages).
+        """
 
     def write_screen(self, lines: list[str]) -> None:
         """Write up to 4 lines to fill the screen.

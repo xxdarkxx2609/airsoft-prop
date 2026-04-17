@@ -249,8 +249,13 @@ class PygameDisplay(DisplayBase):
             self._buffer[i] = list(padded)
         self.flush()
 
-    def shutdown(self) -> None:
-        """Close the pygame window and clean up."""
+    def shutdown(self, clear_display: bool = True) -> None:
+        """Close the pygame window and clean up.
+
+        Args:
+            clear_display: If True (default), clear display and quit pygame.
+                If False, preserve display content (pygame still quits).
+        """
         if self._initialized and _HAS_PYGAME:
             try:
                 pygame.display.quit()

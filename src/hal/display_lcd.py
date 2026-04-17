@@ -177,13 +177,20 @@ class LcdDisplay(DisplayBase):
                 logger.warning("LcdDisplay.flush failed (row %d): %s", row, exc)
             self._dirty[row] = False
 
-    def shutdown(self) -> None:
-        """Clear the display, turn off backlight, and close I2C."""
+    def shutdown(self, clear_display: bool = True) -> None:
+        """Close I2C and optionally clear the display and backlight.
+
+        Args:
+            clear_display: If True (default), clear display and turn off backlight.
+                If False, preserve display content and backlight for exit messages.
+        """
         if self._lcd is not None:
             try:
-                self._lcd.clear()
-                self._lcd.backlight_enabled = False
-                self._lcd.close(clear=True)
+                if clear_display:
+                    self._lcd.clear()
+                    self._lcd.backlight_enabled = False
+                # Always close the I2C connection cleanly
+                self._lcd.close(clear=clear_display)
             except (OSError, IOError) as exc:
                 logger.warning("LcdDisplay.shutdown failed: %s", exc)
             self._lcd = None

@@ -578,12 +578,16 @@ class App:
             self.config.get("audio", "volume", default="?"),
         )
 
-    def shutdown(self) -> None:
+    def shutdown(self, clear_display: bool = True) -> None:
         """Shut down all subsystems gracefully.
 
         Logs each shutdown step so that slow shutdowns can be debugged.
         Timing: typically < 5s for clean shutdown, 15s timeout before systemd
         force-kills.
+
+        Args:
+            clear_display: If True (default), clear the display during shutdown.
+                If False, preserve display content (used for EXIT screen messages).
         """
         self._running = False
         logger.info("Shutting down application...")
@@ -614,7 +618,7 @@ class App:
         # HAL shutdown
         try:
             logger.debug("Stopping HAL components...")
-            self.display.shutdown()
+            self.display.shutdown(clear_display=clear_display)
             self.audio.shutdown()
             self.input.shutdown()
             self.wires.shutdown()

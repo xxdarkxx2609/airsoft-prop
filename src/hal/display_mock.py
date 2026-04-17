@@ -109,14 +109,20 @@ class MockDisplay(DisplayBase):
             return
         self._custom_chars[slot] = pattern
 
-    def shutdown(self) -> None:
-        """Clean up the mock display."""
-        self.clear()
-        self.flush()
-        self.set_backlight(False)
-        # Move cursor below the display frame so the shell prompt is clean.
-        sys.stdout.write("\n")
-        sys.stdout.flush()
+    def shutdown(self, clear_display: bool = True) -> None:
+        """Clean up the mock display.
+
+        Args:
+            clear_display: If True (default), clear display and turn off backlight.
+                If False, preserve display content.
+        """
+        if clear_display:
+            self.clear()
+            self.flush()
+            self.set_backlight(False)
+            # Move cursor below the display frame so the shell prompt is clean.
+            sys.stdout.write("\n")
+            sys.stdout.flush()
         logger.info("MockDisplay shut down")
 
     def write_screen(self, lines: list[str]) -> None:
