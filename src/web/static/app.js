@@ -753,66 +753,93 @@ async function restartService() {
     btn.textContent = "Restarting...";
     const statusDiv = document.getElementById("update-status");
 
+    let restartInitiated = false;
+
+    const startPolling = () => {
+        statusDiv.innerHTML =
+            '<p style="color: var(--warning)">Service is restarting. Waiting for shutdown...</p>';
+        btn.classList.add("hidden");
+
+        // Phase 1: wait for service to go offline (confirms restart is in progress)
+        let shutdownAttempts = 0;
+        const maxShutdownAttempts = 20; // 10s at 500ms intervals
+        let serviceWentOffline = false;
+
+        const phase2 = () => {
+            statusDiv.innerHTML =
+                '<p style="color: var(--warning)">Service stopped. Waiting for it to come back online...</p>';
+            let recoveryAttempts = 0;
+            const maxRecoveryAttempts = 60;
+            const recoveryInterval = setInterval(() => {
+                recoveryAttempts++;
+                fetch("/api/system")
+                    .then(response => {
+                        if (response.ok) {
+                            clearInterval(recoveryInterval);
+                            console.log("Service is online. Reloading page...");
+                            const baseUrl = window.location.href.split("?")[0];
+                            const separator = window.location.search ? "&" : "?";
+                            window.location.href = `${baseUrl}${window.location.search}${separator}_=${Date.now()}`;
+                        }
+                    })
+                    .catch(() => {
+                        if (recoveryAttempts >= maxRecoveryAttempts) {
+                            clearInterval(recoveryInterval);
+                            statusDiv.innerHTML =
+                                '<p style="color: var(--danger)">Restart timed out after 60 seconds. ' +
+                                'Please check the system logs on the device or refresh this page manually.</p>';
+                            btn.classList.remove("hidden");
+                            btn.disabled = false;
+                            btn.textContent = "Restart Service";
+                        }
+                    });
+            }, 1000);
+        };
+
+        const shutdownInterval = setInterval(() => {
+            shutdownAttempts++;
+            fetch("/api/system")
+                .then(() => {
+                    // Still responding — service not stopped yet
+                    if (shutdownAttempts >= maxShutdownAttempts && !serviceWentOffline) {
+                        // Timeout: service may have restarted so fast we missed the offline gap
+                        clearInterval(shutdownInterval);
+                        serviceWentOffline = true;
+                        phase2();
+                    }
+                })
+                .catch(() => {
+                    // Service offline — move to recovery phase
+                    if (!serviceWentOffline) {
+                        serviceWentOffline = true;
+                        clearInterval(shutdownInterval);
+                        phase2();
+                    }
+                });
+        }, 500);
+    };
+
     try {
         const result = await apiPost("/api/service/restart", {});
+        restartInitiated = true;
 
-        // Handle API error: restart command failed
         if (!result.success) {
-            const errorMsg = result.message || "Unknown error during restart.";
-            showMessage("update-message", `Restart failed: ${errorMsg}`, "error");
+            showMessage("update-message", `Restart failed: ${result.message || "Unknown error."}`, "error");
             btn.disabled = false;
             btn.textContent = "Restart Service";
             return;
         }
 
-        // Success: restart command was issued
-        statusDiv.innerHTML =
-            '<p style="color: var(--warning)">Service is restarting. This page will reload automatically...</p>';
-        btn.classList.add("hidden");
-
-        // Always poll for service recovery, regardless of restart_verified flag.
-        // restart_verified is informational (backend PID check), but we need to verify
-        // that the NEW process is actually online and responding.
-        if (result.restart_verified) {
-            console.log("Backend confirmed restart: PID changed. Waiting for new service to come online...");
-        } else {
-            console.warn("Backend could not verify restart (PID check failed). Polling for service recovery...");
-        }
-
-        let attempts = 0;
-        const maxAttempts = 60;
-        const pollInterval = setInterval(() => {
-            attempts++;
-            fetch("/api/system")
-                .then(response => {
-                    // Check if response is actually OK (2xx status)
-                    if (response.ok) {
-                        clearInterval(pollInterval);
-                        console.log("Service is online. Reloading page...");
-                        const baseUrl = window.location.href.split("?")[0];
-                        const separator = window.location.search ? "&" : "?";
-                        window.location.href = `${baseUrl}${window.location.search}${separator}_=${Date.now()}`;
-                    }
-                    // If not ok (e.g. 503 during shutdown), continue polling
-                })
-                .catch(() => {
-                    // Network error or fetch failed — service still offline
-                    if (attempts >= maxAttempts) {
-                        clearInterval(pollInterval);
-                        statusDiv.innerHTML =
-                            '<p style="color: var(--danger)">Restart timed out after 60 seconds. ' +
-                            'Please check the system logs on the device or refresh this page manually.</p>';
-                        btn.classList.remove("hidden");
-                        btn.disabled = false;
-                        btn.textContent = "Restart Service";
-                    }
-                });
-        }, 1000);
+        startPolling();
     } catch (e) {
-        const errorMsg = e.message || "Network error or service unavailable.";
-        showMessage("update-message", `Restart error: ${errorMsg}`, "error");
-        btn.disabled = false;
-        btn.textContent = "Restart Service";
+        if (restartInitiated) {
+            // Network error AFTER sending the request = service restarted mid-response (expected)
+            startPolling();
+        } else {
+            showMessage("update-message", `Restart error: ${e.message || "Network error or service unavailable."}`, "error");
+            btn.disabled = false;
+            btn.textContent = "Restart Service";
+        }
     }
 }
 
