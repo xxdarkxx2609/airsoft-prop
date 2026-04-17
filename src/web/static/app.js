@@ -770,40 +770,42 @@ async function restartService() {
             '<p style="color: var(--warning)">Service is restarting. This page will reload automatically...</p>';
         btn.classList.add("hidden");
 
-        // Check if backend verified the restart by checking PID change
+        // Always poll for service recovery, regardless of restart_verified flag.
+        // restart_verified is informational (backend PID check), but we need to verify
+        // that the NEW process is actually online and responding.
         if (result.restart_verified) {
-            // Backend confirmed the PID changed — restart actually happened
-            console.log("Backend confirmed restart: PID changed");
-            // Still poll a bit to ensure the service is fully up
-            setTimeout(() => {
-                window.location.reload();
-            }, 1500);
+            console.log("Backend confirmed restart: PID changed. Waiting for new service to come online...");
         } else {
-            // Backend couldn't verify the restart; fall back to polling the service
-            // This can happen if systemctl output parsing fails, but the command succeeded
-            console.warn("Backend could not verify restart; polling for service recovery");
-            let attempts = 0;
-            const maxAttempts = 60;
-            const pollInterval = setInterval(() => {
-                attempts++;
-                fetch("/api/system")
-                    .then(() => {
-                        clearInterval(pollInterval);
-                        window.location.reload();
-                    })
-                    .catch(() => {
-                        if (attempts >= maxAttempts) {
-                            clearInterval(pollInterval);
-                            statusDiv.innerHTML =
-                                '<p style="color: var(--danger)">Restart timed out after 60 seconds. ' +
-                                'Please check the system logs on the device or refresh this page manually.</p>';
-                            btn.classList.remove("hidden");
-                            btn.disabled = false;
-                            btn.textContent = "Restart Service";
-                        }
-                    });
-            }, 1000);
+            console.warn("Backend could not verify restart (PID check failed). Polling for service recovery...");
         }
+
+        let attempts = 0;
+        const maxAttempts = 60;
+        const pollInterval = setInterval(() => {
+            attempts++;
+            fetch("/api/system")
+                .then(response => {
+                    // Check if response is actually OK (2xx status)
+                    if (response.ok) {
+                        clearInterval(pollInterval);
+                        console.log("Service is online. Reloading page...");
+                        window.location.reload();
+                    }
+                    // If not ok (e.g. 503 during shutdown), continue polling
+                })
+                .catch(() => {
+                    // Network error or fetch failed — service still offline
+                    if (attempts >= maxAttempts) {
+                        clearInterval(pollInterval);
+                        statusDiv.innerHTML =
+                            '<p style="color: var(--danger)">Restart timed out after 60 seconds. ' +
+                            'Please check the system logs on the device or refresh this page manually.</p>';
+                        btn.classList.remove("hidden");
+                        btn.disabled = false;
+                        btn.textContent = "Restart Service";
+                    }
+                });
+        }, 1000);
     } catch (e) {
         const errorMsg = e.message || "Network error or service unavailable.";
         showMessage("update-message", `Restart error: ${errorMsg}`, "error");
