@@ -1351,8 +1351,8 @@ def create_app(
             logger.debug("systemctl restart command issued successfully")
 
             # Step 4: Wait for systemd to restart the service
-            logger.debug("Waiting 2 seconds for service to restart...")
-            time.sleep(2)
+            logger.debug("Waiting 4 seconds for service to restart...")
+            time.sleep(4)
 
             # Step 5: Verify that new PID started
             logger.debug("Checking new MainPID after restart")
@@ -1382,10 +1382,8 @@ def create_app(
                 logger.warning(f"Could not read new MainPID (returncode={new_pid_result.returncode})")
 
             return jsonify({
-                "success": restart_verified,
-                "message": "Service restarted successfully."
-                if restart_verified
-                else "Service restart command sent but verification failed. Check system logs.",
+                "success": True,
+                "message": "Service restart command sent.",
                 "restart_verified": restart_verified,
             })
 

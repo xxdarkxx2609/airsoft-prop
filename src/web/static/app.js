@@ -789,7 +789,9 @@ async function restartService() {
                     if (response.ok) {
                         clearInterval(pollInterval);
                         console.log("Service is online. Reloading page...");
-                        window.location.reload();
+                        const baseUrl = window.location.href.split("?")[0];
+                        const separator = window.location.search ? "&" : "?";
+                        window.location.href = `${baseUrl}${window.location.search}${separator}_=${Date.now()}`;
                     }
                     // If not ok (e.g. 503 during shutdown), continue polling
                 })
