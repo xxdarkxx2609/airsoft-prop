@@ -81,6 +81,13 @@ class DisplayBase(ABC):
             self.write_line(i, line)
         self.flush()
 
+    def write_lines(self, lines: list[str]) -> None:
+        """Write a set of lines to the display.
+
+        This alias exists for legacy callers that use ``write_lines``.
+        """
+        self.write_screen(lines)
+
     def flush(self) -> None:
         """Flush the display buffer to the hardware.
 

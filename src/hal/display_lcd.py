@@ -189,9 +189,12 @@ class LcdDisplay(DisplayBase):
                 if clear_display:
                     self._lcd.clear()
                     self._lcd.backlight_enabled = False
-                # Always close the I2C connection cleanly
-                self._lcd.close(clear=clear_display)
+                    self._lcd.close(clear=True)
+                else:
+                    # Preserve the LCD state and let process teardown handle I2C cleanup.
+                    pass
             except (OSError, IOError) as exc:
                 logger.warning("LcdDisplay.shutdown failed: %s", exc)
-            self._lcd = None
+            if clear_display:
+                self._lcd = None
         logger.info("LcdDisplay shut down")
