@@ -554,11 +554,9 @@ def create_app(
                     "message": "Device name must be 7 characters or less",
                 }), 400
             if not dn:
-                return jsonify({
-                    "success": False,
-                    "message": "Device name must not be empty",
-                }), 400
-            data["game.device_name"] = dn
+                data.pop("game.device_name", None)
+            else:
+                data["game.device_name"] = dn
 
         config.save_user_config(data)
 

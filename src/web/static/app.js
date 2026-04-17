@@ -234,6 +234,7 @@ async function forgetNetwork(ssid) {
 async function loadConfig() {
     try {
         const config = await apiGet("/api/config");
+        setField("device-name", config.game.device_name);
         setField("default-timer", config.game.default_timer);
         setField("timer-step", config.game.timer_step);
         setField("default-digits", config.modes.random_code.default_digits);
