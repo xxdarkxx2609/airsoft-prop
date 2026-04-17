@@ -85,6 +85,8 @@ Diese Regeln gelten bei **jeder** Aenderung:
 
 6. **Main-Loop Resilienz**: `src/app.py` hat inneren try/except — ein einzelner Fehler crasht nicht die App. Nach 10 aufeinanderfolgenden Fehlern → sauberer Shutdown.
 
+7. **Service Restart mit Verifizierung**: `api_service_restart()` in `src/web/server.py` verwendet direkt `subprocess.run()` (kein bash-wrapper) und verifiziert den Restart durch PID-Vergleich. Return-Value hat `restart_verified` flag — Web-UI (`app.js`) prüft dieses Flag vor Auto-Reload. **Logging ist essentiell** — bei Restart-Problemen `journalctl -u airsoft-prop -n 50` prüfen.
+
 ## Detail-Dokumentation
 
 Fuer bereichsspezifische Aenderungen die entsprechende Referenzdatei konsultieren:

@@ -1265,20 +1265,34 @@ def create_app(
 
     @app.route("/api/service/restart", methods=["POST"])
     def api_service_restart():
-        """Restart the systemd service.
+        """Restart the systemd service with verification.
 
-        Uses a short shell delay so the HTTP response is fully sent
-        before systemd terminates this process.
+        Process:
+        1. Test if sudo works without password prompt
+        2. Get current MainPID
+        3. Issue systemctl restart command
+        4. Wait and verify that new PID started
+        5. Return success only if PID actually changed
+
+        Returns:
+            JSON with success, message, and restart_verified flag.
+            restart_verified is True only if PID changed after restart.
         """
         if mock:
             return jsonify({
                 "success": True,
                 "message": "Mock: Service restart simulated.",
+                "restart_verified": True,
             })
 
         import subprocess
+        import time
+
+        logger.info("Restart request received")
+
         try:
-            # Test if sudo works without password prompt
+            # Step 1: Verify sudo access
+            logger.debug("Checking sudo access with systemctl status")
             result = subprocess.run(
                 ["sudo", "-n", "systemctl", "status", "airsoft-prop"],
                 capture_output=True,
@@ -1286,27 +1300,111 @@ def create_app(
                 timeout=5
             )
             if result.returncode != 0:
+                error_msg = "Cannot restart service: sudo access denied or service not found."
+                logger.error(f"{error_msg} (status returncode={result.returncode})")
+                if result.stderr:
+                    logger.debug(f"systemctl status stderr: {result.stderr}")
                 return jsonify({
                     "success": False,
-                    "message": "Cannot restart service: sudo access denied or service not found.",
+                    "message": error_msg,
+                    "restart_verified": False,
                 }), 500
 
-            # Delay the restart by 1 second so Flask can send the response
-            # before systemd kills this process.
-            subprocess.Popen(
-                ["bash", "-c",
-                 "sleep 1 && sudo systemctl restart airsoft-prop"],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+            # Step 2: Get current MainPID before restart
+            logger.debug("Reading current MainPID")
+            pid_result = subprocess.run(
+                ["sudo", "-n", "systemctl", "show", "-p", "MainPID", "--value", "airsoft-prop"],
+                capture_output=True,
+                text=True,
+                timeout=5
             )
+            old_pid: Optional[int] = None
+            if pid_result.returncode == 0:
+                try:
+                    old_pid = int(pid_result.stdout.strip())
+                    logger.info(f"Current MainPID: {old_pid}")
+                except ValueError:
+                    logger.warning(f"Could not parse MainPID: {pid_result.stdout}")
+
+            # Step 3: Trigger restart (direct call, no bash wrapper)
+            logger.info("Issuing systemctl restart command")
+            restart_result = subprocess.run(
+                ["sudo", "-n", "systemctl", "restart", "airsoft-prop"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+
+            if restart_result.returncode != 0:
+                error_msg = f"systemctl restart failed with returncode {restart_result.returncode}"
+                logger.error(error_msg)
+                if restart_result.stderr:
+                    logger.error(f"stderr: {restart_result.stderr}")
+                if restart_result.stdout:
+                    logger.debug(f"stdout: {restart_result.stdout}")
+                return jsonify({
+                    "success": False,
+                    "message": "Failed to issue restart command to systemd.",
+                    "restart_verified": False,
+                }), 500
+
+            logger.debug("systemctl restart command issued successfully")
+
+            # Step 4: Wait for systemd to restart the service
+            logger.debug("Waiting 2 seconds for service to restart...")
+            time.sleep(2)
+
+            # Step 5: Verify that new PID started
+            logger.debug("Checking new MainPID after restart")
+            new_pid_result = subprocess.run(
+                ["sudo", "-n", "systemctl", "show", "-p", "MainPID", "--value", "airsoft-prop"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+
+            restart_verified = False
+            new_pid: Optional[int] = None
+
+            if new_pid_result.returncode == 0:
+                try:
+                    new_pid = int(new_pid_result.stdout.strip())
+                    if new_pid and new_pid != old_pid:
+                        restart_verified = True
+                        logger.info(f"Restart verified: PID changed from {old_pid} to {new_pid}")
+                    else:
+                        logger.warning(
+                            f"Restart NOT verified: PID unchanged or invalid (old={old_pid}, new={new_pid})"
+                        )
+                except ValueError:
+                    logger.warning(f"Could not parse new MainPID: {new_pid_result.stdout}")
+            else:
+                logger.warning(f"Could not read new MainPID (returncode={new_pid_result.returncode})")
+
             return jsonify({
-                "success": True,
-                "message": "Service is restarting...",
+                "success": restart_verified,
+                "message": "Service restarted successfully."
+                if restart_verified
+                else "Service restart command sent but verification failed. Check system logs.",
+                "restart_verified": restart_verified,
             })
-        except subprocess.TimeoutExpired:
-            return jsonify({"success": False, "message": "Timeout testing sudo access."}), 500
+
+        except subprocess.TimeoutExpired as e:
+            error_msg = f"Timeout during restart operation: {e}"
+            logger.error(error_msg)
+            return jsonify({
+                "success": False,
+                "message": "Timeout while restarting service.",
+                "restart_verified": False,
+            }), 500
         except Exception as e:
-            return jsonify({"success": False, "message": str(e)}), 500
+            error_msg = f"Unexpected error during restart: {type(e).__name__}: {e}"
+            logger.exception(error_msg)
+            return jsonify({
+                "success": False,
+                "message": str(e),
+                "restart_verified": False,
+            }), 500
 
     return app
 

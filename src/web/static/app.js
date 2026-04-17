@@ -751,39 +751,62 @@ async function restartService() {
     const btn = document.getElementById("btn-restart");
     btn.disabled = true;
     btn.textContent = "Restarting...";
+    const statusDiv = document.getElementById("update-status");
 
     try {
         const result = await apiPost("/api/service/restart", {});
-        if (result.success) {
-            document.getElementById("update-status").innerHTML =
-                '<p style="color: var(--warning)">Service is restarting. This page will reload automatically...</p>';
-            btn.classList.add("hidden");
-            // Poll until the server is back (start immediately, check every 1s, timeout after 60s)
+
+        // Handle API error: restart command failed
+        if (!result.success) {
+            const errorMsg = result.message || "Unknown error during restart.";
+            showMessage("update-message", `Restart failed: ${errorMsg}`, "error");
+            btn.disabled = false;
+            btn.textContent = "Restart Service";
+            return;
+        }
+
+        // Success: restart command was issued
+        statusDiv.innerHTML =
+            '<p style="color: var(--warning)">Service is restarting. This page will reload automatically...</p>';
+        btn.classList.add("hidden");
+
+        // Check if backend verified the restart by checking PID change
+        if (result.restart_verified) {
+            // Backend confirmed the PID changed — restart actually happened
+            console.log("Backend confirmed restart: PID changed");
+            // Still poll a bit to ensure the service is fully up
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            // Backend couldn't verify the restart; fall back to polling the service
+            // This can happen if systemctl output parsing fails, but the command succeeded
+            console.warn("Backend could not verify restart; polling for service recovery");
             let attempts = 0;
             const maxAttempts = 60;
             const pollInterval = setInterval(() => {
                 attempts++;
-                fetch("/api/system").then(() => {
-                    clearInterval(pollInterval);
-                    window.location.reload();
-                }).catch(() => {
-                    if (attempts >= maxAttempts) {
+                fetch("/api/system")
+                    .then(() => {
                         clearInterval(pollInterval);
-                        document.getElementById("update-status").innerHTML =
-                            '<p style="color: var(--danger)">Restart timed out. Please refresh the page manually.</p>';
-                        btn.classList.remove("hidden");
-                        btn.disabled = false;
-                        btn.textContent = "Restart Service";
-                    }
-                });
+                        window.location.reload();
+                    })
+                    .catch(() => {
+                        if (attempts >= maxAttempts) {
+                            clearInterval(pollInterval);
+                            statusDiv.innerHTML =
+                                '<p style="color: var(--danger)">Restart timed out after 60 seconds. ' +
+                                'Please check the system logs on the device or refresh this page manually.</p>';
+                            btn.classList.remove("hidden");
+                            btn.disabled = false;
+                            btn.textContent = "Restart Service";
+                        }
+                    });
             }, 1000);
-        } else {
-            showMessage("update-message", result.message, "error");
-            btn.disabled = false;
-            btn.textContent = "Restart Service";
         }
     } catch (e) {
-        showMessage("update-message", "Restart failed", "error");
+        const errorMsg = e.message || "Network error or service unavailable.";
+        showMessage("update-message", `Restart error: ${errorMsg}`, "error");
         btn.disabled = false;
         btn.textContent = "Restart Service";
     }
