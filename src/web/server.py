@@ -1327,65 +1327,18 @@ def create_app(
                 except ValueError:
                     logger.warning(f"Could not parse MainPID: {pid_result.stdout}")
 
-            # Step 3: Trigger restart (direct call, no bash wrapper)
-            logger.info("Issuing systemctl restart command")
-            restart_result = subprocess.run(
+            # Step 3: Trigger restart asynchronously so we can respond before the process dies
+            logger.info("Issuing systemctl restart command (fire-and-forget)")
+            subprocess.Popen(
                 ["sudo", "-n", "systemctl", "restart", "airsoft-prop"],
-                capture_output=True,
-                text=True,
-                timeout=10
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
             )
-
-            if restart_result.returncode != 0:
-                error_msg = f"systemctl restart failed with returncode {restart_result.returncode}"
-                logger.error(error_msg)
-                if restart_result.stderr:
-                    logger.error(f"stderr: {restart_result.stderr}")
-                if restart_result.stdout:
-                    logger.debug(f"stdout: {restart_result.stdout}")
-                return jsonify({
-                    "success": False,
-                    "message": "Failed to issue restart command to systemd.",
-                    "restart_verified": False,
-                }), 500
-
-            logger.debug("systemctl restart command issued successfully")
-
-            # Step 4: Wait for systemd to restart the service
-            logger.debug("Waiting 4 seconds for service to restart...")
-            time.sleep(4)
-
-            # Step 5: Verify that new PID started
-            logger.debug("Checking new MainPID after restart")
-            new_pid_result = subprocess.run(
-                ["sudo", "-n", "systemctl", "show", "-p", "MainPID", "--value", "airsoft-prop"],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-
-            restart_verified = False
-            new_pid: Optional[int] = None
-
-            if new_pid_result.returncode == 0:
-                try:
-                    new_pid = int(new_pid_result.stdout.strip())
-                    if new_pid and new_pid != old_pid:
-                        restart_verified = True
-                        logger.info(f"Restart verified: PID changed from {old_pid} to {new_pid}")
-                    else:
-                        logger.warning(
-                            f"Restart NOT verified: PID unchanged or invalid (old={old_pid}, new={new_pid})"
-                        )
-                except ValueError:
-                    logger.warning(f"Could not parse new MainPID: {new_pid_result.stdout}")
-            else:
-                logger.warning(f"Could not read new MainPID (returncode={new_pid_result.returncode})")
 
             return jsonify({
                 "success": True,
                 "message": "Service restart command sent.",
-                "restart_verified": restart_verified,
+                "restart_verified": False,
             })
 
         except subprocess.TimeoutExpired as e:

@@ -756,24 +756,14 @@ async function restartService() {
     const statusDiv = document.getElementById("update-status");
 
     try {
-        const result = await apiPost("/api/service/restart", {});
-
-        if (!result.success) {
-            showMessage("update-message", `Restart failed: ${result.message || "Unknown error."}`, "error");
-            btn.disabled = false;
-            btn.textContent = "Restart Service";
-            return;
-        }
-
-        statusDiv.innerHTML =
-            '<p style="color: var(--warning)">Restart triggered. Please reload this page manually once the device is back online.</p>';
-        btn.classList.add("hidden");
+        await apiPost("/api/service/restart", {});
     } catch (e) {
-        // Network error likely means the service restarted mid-response — treat as success
-        statusDiv.innerHTML =
-            '<p style="color: var(--warning)">Restart triggered. Please reload this page manually once the device is back online.</p>';
-        btn.classList.add("hidden");
+        // Ignore — network error means the service is already restarting
     }
+
+    statusDiv.innerHTML =
+        '<p style="color: var(--warning)">Restart triggered. Please reload this page manually once the device is back online.</p>';
+    btn.classList.add("hidden");
 }
 
 // ----------------------------------------------------------------
