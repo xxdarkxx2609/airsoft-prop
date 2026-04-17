@@ -639,6 +639,7 @@ def create_app(
         charging = bat.is_charging()
         plugged = bat.is_power_plugged()
         runtime = bat.get_runtime_minutes()
+        charge_minutes = bat.get_charge_minutes() if plugged else None
 
         return jsonify({
             "available": True,
@@ -647,7 +648,8 @@ def create_app(
             "current_ma": current,
             "charging": charging,
             "power_plugged": plugged,
-            "runtime_minutes": runtime,
+            "runtime_minutes": runtime if not plugged else None,
+            "charge_minutes": charge_minutes,
         })
 
     # ------------------------------------------------------------------

@@ -305,6 +305,14 @@ class BatteryBase(ABC):
         """
 
     @abstractmethod
+    def get_charge_minutes(self) -> Optional[int]:
+        """Estimate minutes until battery is fully charged.
+
+        Returns:
+            Estimated minutes to full charge or None if unavailable/already full.
+        """
+
+    @abstractmethod
     def shutdown(self) -> None:
         """Clean up battery monitor resources."""
 

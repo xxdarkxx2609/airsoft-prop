@@ -21,6 +21,8 @@ logger = get_logger(__name__)
 _DEFAULT_CAPACITY_MAH = 1200
 # Average system draw estimate used when live current is unavailable (mA).
 _DEFAULT_AVG_DRAW_MA = 280
+# Typical USB-C charging current at 5V (mA) — used for charge time estimation.
+_DEFAULT_CHARGE_CURRENT_MA = 500
 # How long to keep cached values (seconds).
 _CACHE_TTL = 5.0
 # Seconds between reconnect attempts after the daemon becomes unreachable.
@@ -94,6 +96,15 @@ class PiSugarBattery(BatteryBase):
         # Fallback: estimate from percentage and average draw.
         remaining_mah = self._capacity_mah * (level / 100.0)
         return max(0, int(remaining_mah / _DEFAULT_AVG_DRAW_MA * 60))
+
+    def get_charge_minutes(self) -> Optional[int]:
+        """Estimate minutes until battery is fully charged."""
+        level = self.get_battery_level()
+        if level is None or level >= 100:
+            return None
+        remaining_pct = 100 - level
+        remaining_mah = self._capacity_mah * (remaining_pct / 100.0)
+        return max(0, int(remaining_mah / _DEFAULT_CHARGE_CURRENT_MA * 60))
 
     def shutdown(self) -> None:
         logger.info("PiSugarBattery shut down")

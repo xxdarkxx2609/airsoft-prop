@@ -634,18 +634,30 @@ async function fetchBatteryInfo() {
             statusText = "Discharging";
         }
 
-        let runtimeText = "N/A";
-        if (info.runtime_minutes !== null) {
-            const h = Math.floor(info.runtime_minutes / 60);
-            const m = info.runtime_minutes % 60;
-            runtimeText = h > 0 ? `~${h}h ${m}min` : `~${m}min`;
+        let timeRow;
+        if (info.power_plugged === true) {
+            let chargeText = "Charging...";
+            if (info.charge_minutes !== null && info.charge_minutes !== undefined) {
+                const h = Math.floor(info.charge_minutes / 60);
+                const m = info.charge_minutes % 60;
+                chargeText = h > 0 ? `~${h}h ${m}min` : `~${m}min`;
+            }
+            timeRow = ["Est. Charge Time", chargeText];
+        } else {
+            let runtimeText = "N/A";
+            if (info.runtime_minutes !== null && info.runtime_minutes !== undefined) {
+                const h = Math.floor(info.runtime_minutes / 60);
+                const m = info.runtime_minutes % 60;
+                runtimeText = h > 0 ? `~${h}h ${m}min` : `~${m}min`;
+            }
+            timeRow = ["Est. Runtime", runtimeText];
         }
 
         const rows = [
             ["Status", statusText],
             ["Voltage", info.voltage !== null ? `${info.voltage.toFixed(2)} V` : "N/A"],
             ["Current", info.current_ma !== null ? `${info.current_ma.toFixed(0)} mA` : "N/A"],
-            ["Est. Runtime", runtimeText],
+            timeRow,
             ["External Power", info.power_plugged === true ? "Connected" : info.power_plugged === false ? "Not connected" : "N/A"],
         ];
 

@@ -68,6 +68,15 @@ class MockBattery(BatteryBase):
         remaining_mah = _CAPACITY_MAH * (level / 100.0)
         return max(0, int(remaining_mah / _AVG_DRAW_MA * 60))
 
+    def get_charge_minutes(self) -> Optional[int]:
+        """Estimate minutes until fully charged (mock: fixed value)."""
+        level = self._simulated_level()
+        if level >= 100:
+            return None
+        remaining_pct = 100 - level
+        remaining_mah = _CAPACITY_MAH * (remaining_pct / 100.0)
+        return max(0, int(remaining_mah / 500 * 60))
+
     def shutdown(self) -> None:
         logger.info("MockBattery shut down")
 
