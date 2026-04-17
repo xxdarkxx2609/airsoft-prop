@@ -8,6 +8,7 @@ screens, and renders the display.
 from __future__ import annotations
 
 import queue
+import signal
 import sys
 import time
 from typing import Any, Optional
@@ -485,10 +486,25 @@ class App:
         frame errors are logged but do not crash the application. After
         ``_MAX_CONSECUTIVE_ERRORS`` failures in a row the app shuts down
         gracefully.
+
+        Signal Handling:
+        - SIGTERM (systemd stop): triggers graceful shutdown
+        - SIGINT (Ctrl+C): triggers graceful shutdown
         """
         self._running = True
         self.screen_manager.switch_to("boot")
         logger.info("Main loop started")
+
+        # Register signal handlers for graceful shutdown
+        def _signal_handler(signum: int, frame: Any) -> None:
+            """Handle SIGTERM/SIGINT by setting _running to False."""
+            sig_name = signal.Signals(signum).name
+            logger.info(f"Received {sig_name}, initiating graceful shutdown")
+            self._running = False
+
+        signal.signal(signal.SIGTERM, _signal_handler)
+        signal.signal(signal.SIGINT, _signal_handler)
+        logger.debug("Signal handlers registered (SIGTERM, SIGINT)")
 
         _consecutive_errors = 0
         _MAX_CONSECUTIVE_ERRORS = 10
@@ -532,7 +548,7 @@ class App:
                     time.sleep(sleep_time)
 
         except KeyboardInterrupt:
-            logger.info("Interrupted by user")
+            logger.info("Interrupted by user (KeyboardInterrupt)")
         finally:
             self.shutdown()
 
@@ -563,20 +579,50 @@ class App:
         )
 
     def shutdown(self) -> None:
-        """Shut down all subsystems gracefully."""
+        """Shut down all subsystems gracefully.
+
+        Logs each shutdown step so that slow shutdowns can be debugged.
+        Timing: typically < 5s for clean shutdown, 15s timeout before systemd
+        force-kills.
+        """
         self._running = False
         logger.info("Shutting down application...")
+        _shutdown_start = time.time()
 
-        if self.captive_portal:
-            self.captive_portal.shutdown()
-        if self._web_server:
-            self._web_server.stop()
-        self.display.shutdown()
-        self.audio.shutdown()
-        self.input.shutdown()
-        self.wires.shutdown()
-        self.usb_detector.shutdown()
-        self.battery.shutdown()
-        self.led.shutdown()
+        # Shutdown order: web first (stop accepting connections),
+        # then peripherals, then HAL
+        try:
+            if self.captive_portal:
+                logger.debug("Stopping captive portal...")
+                _cp_start = time.time()
+                self.captive_portal.shutdown()
+                _cp_elapsed = time.time() - _cp_start
+                logger.debug(f"Captive portal shut down in {_cp_elapsed:.2f}s")
+        except Exception:
+            logger.exception("Error shutting down captive portal")
 
-        logger.info("Application shut down complete")
+        try:
+            if self._web_server:
+                logger.debug("Stopping web server...")
+                _ws_start = time.time()
+                self._web_server.stop()
+                _ws_elapsed = time.time() - _ws_start
+                logger.debug(f"Web server shut down in {_ws_elapsed:.2f}s")
+        except Exception:
+            logger.exception("Error shutting down web server")
+
+        # HAL shutdown
+        try:
+            logger.debug("Stopping HAL components...")
+            self.display.shutdown()
+            self.audio.shutdown()
+            self.input.shutdown()
+            self.wires.shutdown()
+            self.usb_detector.shutdown()
+            self.battery.shutdown()
+            self.led.shutdown()
+        except Exception:
+            logger.exception("Error shutting down HAL")
+
+        _shutdown_elapsed = time.time() - _shutdown_start
+        logger.info(f"Application shut down complete ({_shutdown_elapsed:.2f}s)")

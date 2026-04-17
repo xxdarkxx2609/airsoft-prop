@@ -15,6 +15,9 @@ Restart=on-failure
 RestartSec=5
 StandardOutput=journal
 StandardError=journal
+# Graceful shutdown timeout: give app 15s to clean shutdown via SIGTERM
+# before systemd force-kills with SIGKILL
+TimeoutStopSec=15
 
 # Environment
 Environment=PYTHONUNBUFFERED=1

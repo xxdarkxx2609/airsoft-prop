@@ -265,10 +265,19 @@ class CaptivePortal(CaptivePortalBase):
         logger.info("Captive portal monitor started (interval=%ss)", _MONITOR_INTERVAL)
 
     def stop_monitor(self) -> None:
-        """Signal the monitor thread to stop."""
+        """Signal the monitor thread to stop.
+
+        Times out after 2 seconds (monitor loop checks every 15s, but stop event
+        causes immediate wake-up). During shutdown, if monitor doesn't exit in 2s,
+        it will be killed as a daemon thread.
+        """
         self._monitor_stop.set()
         if self._monitor_thread:
-            self._monitor_thread.join(timeout=_MONITOR_INTERVAL + 5)
+            # Short timeout (2s) during shutdown — monitor should wake immediately
+            # when stop event is set via wait()
+            self._monitor_thread.join(timeout=2.0)
+            if self._monitor_thread.is_alive():
+                logger.debug("Monitor thread still running after stop signal (will be killed)")
             self._monitor_thread = None
         logger.info("Captive portal monitor stopped")
 

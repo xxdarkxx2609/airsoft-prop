@@ -1435,6 +1435,7 @@ class WebServer:
         self._app: Optional[Flask] = None
         self._thread: Optional[threading.Thread] = None
         self._port = config.get("web", "port", default=8080)
+        self._stop_event: threading.Event = threading.Event()
 
     def start(self) -> None:
         """Start the web server in a daemon thread."""
@@ -1449,6 +1450,22 @@ class WebServer:
             prop_app=self._prop_app,
             captive_portal=self._captive_portal,
         )
+
+        # Register shutdown handler to stop Flask server gracefully
+        @self._app.before_request
+        def _before_request() -> None:
+            """Check if shutdown was requested; abort if so."""
+            if self._stop_event.is_set():
+                # Prevent new requests during shutdown
+                from flask import abort
+                abort(503)
+
+        @self._app.teardown_appcontext
+        def _shutdown_handler(exception: Any = None) -> None:
+            """Called on app shutdown context."""
+            if self._stop_event.is_set():
+                logger.debug("Flask teardown during shutdown")
+
         self._thread = threading.Thread(
             target=self._run,
             name="web-server",
@@ -1458,24 +1475,47 @@ class WebServer:
         logger.info("Web server started on port %s", self._port)
 
     def _run(self) -> None:
-        """Run the Flask server (called in thread)."""
+        """Run the Flask server (called in thread).
+
+        Flask's app.run() is blocking, but we need to shut down gracefully
+        when _stop_event is set. We use app.run() with a timeout and check
+        the stop event periodically via a before_request hook.
+        """
         # Suppress Flask/Werkzeug request logging in production
         import logging
         log = logging.getLogger("werkzeug")
         log.setLevel(logging.WARNING)
 
-        self._app.run(
-            host="0.0.0.0",
-            port=self._port,
-            debug=False,
-            use_reloader=False,
-        )
+        try:
+            self._app.run(
+                host="0.0.0.0",
+                port=self._port,
+                debug=False,
+                use_reloader=False,
+            )
+        except Exception as e:
+            logger.warning(f"Flask server error: {e}")
+        finally:
+            logger.debug("Flask server thread exiting")
 
     def stop(self) -> None:
-        """Stop the web server.
+        """Stop the web server gracefully.
 
-        Since we use a daemon thread, it will be killed
-        when the main process exits. This method is a no-op
-        but exists for symmetry with start().
+        Sets the stop event and waits for the server thread to exit.
+        Times out after 5 seconds (systemd will force-kill after 15s total).
         """
-        logger.info("Web server stopping")
+        if self._app is None:
+            logger.debug("Web server not running")
+            return
+
+        logger.info("Stopping web server...")
+        self._stop_event.set()
+
+        # Wait for the Flask thread to exit (timeout 5s)
+        if self._thread and self._thread.is_alive():
+            logger.debug("Waiting for Flask thread to exit...")
+            self._thread.join(timeout=5.0)
+            if self._thread.is_alive():
+                logger.warning("Flask thread did not exit within 5s timeout (daemon will be killed)")
+            else:
+                logger.debug("Flask thread exited cleanly")

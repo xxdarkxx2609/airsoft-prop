@@ -85,7 +85,9 @@ Diese Regeln gelten bei **jeder** Aenderung:
 
 6. **Main-Loop Resilienz**: `src/app.py` hat inneren try/except — ein einzelner Fehler crasht nicht die App. Nach 10 aufeinanderfolgenden Fehlern → sauberer Shutdown.
 
-7. **Service Restart mit Verifizierung**: `api_service_restart()` in `src/web/server.py` verwendet direkt `subprocess.run()` (kein bash-wrapper) und verifiziert den Restart durch PID-Vergleich. Return-Value hat `restart_verified` flag — Web-UI (`app.js`) prüft dieses Flag vor Auto-Reload. **Logging ist essentiell** — bei Restart-Problemen `journalctl -u airsoft-prop -n 50` prüfen.
+7. **Graceful Shutdown (SIGTERM/SIGINT)**: Signal Handler registrieren sich in `App.run()` um `_running = False` zu setzen. Systemd sendet SIGTERM bei Restart/Stop. `TimeoutStopSec=15` in systemd unit gibt der App 15s für Cleanup. Flask Shutdown Hook + WebServer.stop() mit 5s Timeout. Ziel: Shutdown in < 5s statt 90s+ SIGKILL. **Bei Restart-Problemen: `systemctl stop airsoft-prop && journalctl -u airsoft-prop -n 100` prüfen.**
+
+8. **Service Restart mit Verifizierung**: `api_service_restart()` in `src/web/server.py` verwendet direkt `subprocess.run()` (kein bash-wrapper) und verifiziert den Restart durch PID-Vergleich. Return-Value hat `restart_verified` flag — Web-UI (`app.js`) prüft dieses Flag vor Auto-Reload. **Logging ist essentiell** — bei Restart-Problemen `journalctl -u airsoft-prop -n 50` prüfen.
 
 ## Detail-Dokumentation
 
