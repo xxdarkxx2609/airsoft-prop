@@ -335,7 +335,6 @@ main {
     color: var(--warning);
     border: 1px solid var(--warning);
 }
-
 /* Status indicator */
 .loading {
     color: var(--text-dim);
