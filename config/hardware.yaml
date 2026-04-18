@@ -20,10 +20,8 @@ lcd:
   # Display dimensions
   cols: 20
   rows: 4
-  # I2C port — using software I2C bus 4 (GPIO5=SDA/Pin29, GPIO6=SCL/Pin31)
-  # via dtoverlay=i2c-gpio,bus=4,i2c_gpio_sda=5,i2c_gpio_scl=6 in /boot/firmware/config.txt
-  # GPIO2/GPIO3 (Bus 1) remain free for PiSugar S power management daemon.
-  i2c_port: 4
+  # I2C port (1 for Raspberry Pi hardware I2C on GPIO2=SDA, GPIO3=SCL)
+  i2c_port: 1
 
 # GPIO pin assignments (BCM numbering)
 gpio:

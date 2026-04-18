@@ -274,14 +274,7 @@ run_with_spinner "Configuring I2C" \
         else
             echo "[INFO] I2C already enabled"
         fi
-        if ! grep -q "i2c-gpio.*bus=4" /boot/firmware/config.txt 2>/dev/null; then
-            echo "dtoverlay=i2c-gpio,bus=4,i2c_gpio_sda=5,i2c_gpio_scl=6" >> /boot/firmware/config.txt
-            echo "[INFO] Software I2C overlay added (bus=4, GPIO5=SDA, GPIO6=SCL)"
-            echo "NEEDS_REBOOT" > /tmp/airsoft-install-reboot-flag
-        else
-            echo "[INFO] Software I2C overlay already configured"
-        fi
-        if ! lsmod | grep -q i2c_dev; then
+if ! lsmod | grep -q i2c_dev; then
             modprobe i2c-dev || true
         fi
         if ! grep -q "i2c-dev" /etc/modules; then
