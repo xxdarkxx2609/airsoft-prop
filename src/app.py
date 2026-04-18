@@ -33,9 +33,6 @@ logger = get_logger(__name__)
 # Target frame time for the main loop (~30 fps).
 _LOOP_INTERVAL: float = 1.0 / 15.0
 
-# Log a warning if any single main-loop step exceeds this duration.
-_LOOP_SLOW_THRESHOLD: float = 0.2
-
 
 class App:
     """Main application class — owns HAL, screens, and the event loop.
@@ -517,37 +514,17 @@ class App:
                 loop_start = time.time()
 
                 try:
-                    t0 = time.time()
+                    # Process cross-thread events (e.g. from WebUI)
                     self._process_events()
-                    t1 = time.time()
 
+                    # Poll input
                     key = self.input.get_key()
                     if key is not None:
                         self.screen_manager.handle_input(key)
-                    t2 = time.time()
 
+                    # Render
                     self.screen_manager.render(self.display)
-                    t3 = time.time()
-
                     self.display.flush()
-                    t4 = time.time()
-
-                    slow = [
-                        (name, dt)
-                        for name, dt in (
-                            ("process_events", t1 - t0),
-                            ("input",          t2 - t1),
-                            ("render",         t3 - t2),
-                            ("flush",          t4 - t3),
-                            ("total",          t4 - loop_start),
-                        )
-                        if dt > _LOOP_SLOW_THRESHOLD
-                    ]
-                    if slow:
-                        detail = ", ".join(
-                            f"{name}={dt * 1000:.0f}ms" for name, dt in slow
-                        )
-                        logger.warning("Slow main-loop step(s): %s", detail)
 
                     _consecutive_errors = 0
                 except Exception:
