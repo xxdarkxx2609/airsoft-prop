@@ -157,8 +157,21 @@ class NumpadInput(InputBase):
 
     def _read_loop(self) -> None:
         """Background thread: read evdev events and enqueue mapped keys."""
-        assert self._device is not None  # noqa: S101
+        import time as _time
+
         while self._running:
+            if self._device is None:
+                self._device = self._find_numpad()
+                if self._device is None:
+                    _time.sleep(1.0)
+                    continue
+                try:
+                    self._device.grab()
+                    self._grabbed = True
+                except (OSError, IOError):
+                    pass
+                logger.info("Numpad reconnected: %s (%s)", self._device.name, self._device.path)
+
             try:
                 # Non-blocking read with 100ms timeout for clean shutdown.
                 r, _, _ = select.select([self._device.fd], [], [], 0.1)
@@ -178,6 +191,15 @@ class NumpadInput(InputBase):
                         self._key_queue.put(key_str)
                         logger.debug("NumpadInput key: %s", key_str)
             except (OSError, IOError):
-                logger.warning("Numpad device disconnected")
-                self._running = False
-                break
+                logger.warning("Numpad device disconnected, reconnecting...")
+                try:
+                    if self._grabbed:
+                        self._device.ungrab()
+                except (OSError, IOError):
+                    pass
+                try:
+                    self._device.close()
+                except (OSError, IOError):
+                    pass
+                self._device = None
+                self._grabbed = False
