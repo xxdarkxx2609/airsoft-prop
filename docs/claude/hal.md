@@ -52,7 +52,7 @@ Dateien: `beep.wav`, `planted.wav`, `explosion.wav`, `siren.wav`, `defused.wav`,
 
 `blink_once()` wird synchron mit dem Beep-Sound aufgerufen (`app.led.blink_once()`). Non-blocking (~120ms on, via gpiozero-Thread).
 
-## PiSugar 3 Batterie
+## PiSugar S Batterie
 
 Kommunikation ueber den `pisugar-power-manager` Daemon (TCP Socket `127.0.0.1:8423`), NICHT ueber Raw I2C.
 
@@ -61,9 +61,9 @@ Kommunikation ueber den `pisugar-power-manager` Daemon (TCP Socket `127.0.0.1:84
 - Werte werden alle 5s gecacht, Reconnect-Versuch alle 30s bei Verbindungsverlust
 - Fehlender Daemon → graceful Fallback auf `None` fuer alle Werte
 - UI-Code muss immer auf `None` pruefen
-- **Hardware:** 1200 mAh LiPo, 5V/3A Ausgang, USB-C Laden, I2C `0x57`, RTC auf `0x68`
+- **Hardware:** 1200 mAh LiPo, 5V/2.4A Ausgang, USB-C Laden, I2C `0x57` (Bus 1 = GPIO2/GPIO3)
 - **Laufzeit:** ~2-3h unter Last (LCD + Audio + WiFi + Numpad)
-- **Bekannter Bug:** PiSugar 3 mit pisugar-server v2.3.2 funktioniert NICHT auf armv6 (Pi Zero WH). Upgrade auf Pi Zero 2 WH (armv7/armv8) noetig. Bis dahin: `battery: "none"` in `hardware.yaml`.
+- **Power-ON Signal:** PiSugar S verwendet GPIO3 als Power-ON-Trigger beim Einschalten. Deshalb darf GPIO3 nicht durch andere Hardware belegt sein — das I2C-Display laeuft daher auf Software-I2C Bus 4 (GPIO5/GPIO6).
 
 ## USB-Detector: Permissive/Strict Mode
 
@@ -76,7 +76,11 @@ Kommunikation ueber den `pisugar-power-manager` Daemon (TCP Socket `127.0.0.1:84
 ## GPIO-Pinout
 
 ```
-LCD I2C:     SDA=GPIO2(Pin3), SCL=GPIO3(Pin5), VCC=5V(Pin2), GND=Pin6
+LCD I2C (Software-Bus 4):
+             SDA=GPIO5(Pin29), SCL=GPIO6(Pin31), VCC=5V(Pin2), GND=Pin6
+             Overlay: dtoverlay=i2c-gpio,bus=4,i2c_gpio_sda=5,i2c_gpio_scl=6
+PiSugar S:   I2C Bus 1: SDA=GPIO2(Pin3), SCL=GPIO3(Pin5) — Daemon-Kommunikation
+             GPIO3 wird beim Boot kurz als Power-ON-Signal verwendet (intern durch PiSugar S)
 Audio:       USB Lautsprecher (default) oder PWM GPIO18(Pin12) → PAM8403
 Wire 1 (Defuse):  GPIO17(Pin11) + 10kOhm Pull-Down
 Wire 2 (Explode): GPIO27(Pin13) + 10kOhm Pull-Down

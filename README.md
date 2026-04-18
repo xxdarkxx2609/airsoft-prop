@@ -48,7 +48,7 @@ Dieses Projekt ist ein **funktionsloses Requisit** (Prop) für Airsoft- und Mils
 - **USB Key Security**: cryptographic token validation for defuse keys
 - **Captive Portal**: when no known WiFi is available, the Pi creates its own access point and redirects phones to the web interface automatically
 - **Web interface**: mobile-first UI on port 8080 for WiFi, settings, tournament mode, battery status, logs, and updates
-- **Battery monitoring**: PiSugar 3 UPS HAT integration with runtime estimation, charge level, and charging status
+- **Battery monitoring**: PiSugar S UPS HAT integration with runtime estimation, charge level, and charging status
 - **Auto-updater**: update directly from the device menu or web interface
 
 ---
@@ -64,7 +64,7 @@ Dieses Projekt ist ein **funktionsloses Requisit** (Prop) für Airsoft- und Mils
 | LED + 330Ω Resistor | Beep indicator LED (optional) | ~€1 |
 | Micro-USB OTG Adapter | Connect USB numpad to Pi Zero | ~€4 |
 | Micro-SD Card (16 GB+) | OS storage | ~€11 |
-| PiSugar 3 UPS HAT (optional) | Battery (1200 mAh, USB-C charging, ~2–3 h runtime) | ~€42 |
+| PiSugar S UPS HAT (optional) | Battery (1200 mAh, USB-C charging, ~2–3 h runtime) | ~€35 |
 | Ammo Box or Pelican Case | Enclosure | ~€18 |
 | **Total** | | **~€89-131** |
 
@@ -75,9 +75,9 @@ Dieses Projekt ist ein **funktionsloses Requisit** (Prop) für Airsoft- und Mils
 All GPIO numbers use BCM numbering.
 
 ```
-LCD Display (I2C):
-  Pi Pin 3  (GPIO2/SDA)  ──→  LCD SDA
-  Pi Pin 5  (GPIO3/SCL)  ──→  LCD SCL
+LCD Display (Software I2C via i2c-gpio overlay):
+  Pi Pin 29 (GPIO5/SDA)  ──→  LCD SDA
+  Pi Pin 31 (GPIO6/SCL)  ──→  LCD SCL
   Pi Pin 2  (5V)         ──→  LCD VCC
   Pi Pin 6  (GND)        ──→  LCD GND
 
@@ -92,19 +92,30 @@ Beep Indicator LED (optional):
 
 ---
 
-## Battery (PiSugar 3)
+## Battery (PiSugar S)
 
-The prop uses a **PiSugar 3** UPS HAT for portable power. It attaches underneath the Pi Zero via pogo pins — no soldering required, and the GPIO header remains free for other connections.
+The prop uses a **PiSugar S** UPS HAT for portable power. It attaches underneath the Pi Zero via pogo pins — no soldering required, and the GPIO header remains free for other connections.
+
+The PiSugar S is chosen over the PiSugar 3 because it can send a Power-ON signal to the Pi via GPIO3 — allowing the device to boot without pressing a hardware button. The LCD display therefore uses **Software I2C on GPIO5/GPIO6** (Pin 29/31) to keep GPIO3 free.
 
 | Spec | Value |
 |------|-------|
 | Battery | 1200 mAh LiPo (3.7 V) |
-| Output | 5 V / 3 A |
+| Output | 5 V / 2.4 A |
 | Charging | USB-C (charges while running) |
 | Runtime | ~2–3 hours under load |
-| Features | RTC, watchdog, anti-accidental-touch switch, soft shutdown |
+| Features | Power-ON signal (GPIO3), RTC, soft shutdown |
 
 **Setup on Raspberry Pi:**
+
+1. Add the Software I2C overlay for the LCD to `/boot/firmware/config.txt`:
+
+```ini
+# Software I2C for LCD display (GPIO5=SDA/Pin29, GPIO6=SCL/Pin31)
+dtoverlay=i2c-gpio,bus=4,i2c_gpio_sda=5,i2c_gpio_scl=6
+```
+
+2. Install the PiSugar power manager daemon:
 
 ```bash
 curl -O http://cdn.pisugar.com/release/pisugar-power-manager.sh
@@ -112,7 +123,15 @@ chmod +x ./pisugar-power-manager.sh
 sudo ./pisugar-power-manager.sh
 ```
 
-Then edit `config/hardware.yaml` and set `hal.battery: "pisugar"`.
+3. Edit `config/hardware.yaml` and set `hal.battery: "pisugar"`.
+
+4. Reboot and verify:
+
+```bash
+ls /dev/i2c-*        # i2c-4 must appear
+i2cdetect -y 4       # LCD at 0x27 must be visible
+i2cdetect -y 1       # PiSugar S at 0x57 must be visible
+```
 
 Battery information is shown in three places:
 
@@ -488,7 +507,7 @@ tail -f /home/pi/airsoft-prop/logs/prop.log
 
 ## Troubleshooting
 
-**No display output:** Check I2C wiring and make sure I2C is enabled (`sudo raspi-config` → Interface Options → I2C). Verify the I2C address matches `config/hardware.yaml` (default: `0x27`).
+**No display output:** Check I2C wiring (GPIO5=SDA/Pin29, GPIO6=SCL/Pin31). Verify the `i2c-gpio` overlay is active in `/boot/firmware/config.txt` and that `/dev/i2c-4` exists after reboot. Check the I2C address with `i2cdetect -y 4` (default: `0x27`).
 
 **No audio:** Check that the USB speaker is connected via the USB hub and recognized by the system. Test with `aplay -l` or `pactl list short sinks` on the Pi.
 

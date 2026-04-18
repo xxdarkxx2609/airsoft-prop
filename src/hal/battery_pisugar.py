@@ -1,4 +1,4 @@
-"""PiSugar 3 battery HAL implementation.
+"""PiSugar battery HAL implementation (PiSugar S / PiSugar 3).
 
 Communicates with the pisugar-power-manager daemon via TCP socket
 on localhost:8423.  The daemon must be installed and running::
@@ -17,7 +17,7 @@ from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-# Default battery capacity for PiSugar 3 (mAh).
+# Default battery capacity for PiSugar S (mAh).
 _DEFAULT_CAPACITY_MAH = 1200
 # Average system draw estimate used when live current is unavailable (mA).
 _DEFAULT_AVG_DRAW_MA = 280
@@ -30,7 +30,7 @@ _RETRY_INTERVAL = 30.0
 
 
 class PiSugarBattery(BatteryBase):
-    """Read battery data from a PiSugar 3 via *pisugar-power-manager*."""
+    """Read battery data from a PiSugar S/3 via *pisugar-power-manager*."""
 
     def __init__(self, config: "src.utils.config.Config") -> None:
         self._host: str = "127.0.0.1"
