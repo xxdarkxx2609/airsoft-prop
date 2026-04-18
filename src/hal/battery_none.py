@@ -72,6 +72,14 @@ class NoBattery(BatteryBase):
         """
         return None
 
+    def get_charge_minutes(self) -> Optional[int]:
+        """Return None (no UPS HAT present).
+
+        Returns:
+            Always None.
+        """
+        return None
+
     def shutdown(self) -> None:
         """No resources to clean up."""
         logger.info("NoBattery shut down (no-op)")
