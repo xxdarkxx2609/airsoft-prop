@@ -9,6 +9,7 @@ Protocol: send ``"get <key>\\n"``, receive ``"<key>: <value>\\n"``.
 """
 
 import socket
+import threading
 import time
 from typing import Any, Dict, Optional
 
@@ -35,7 +36,7 @@ class PiSugarBattery(BatteryBase):
     def __init__(self, config: "src.utils.config.Config") -> None:
         self._host: str = "127.0.0.1"
         self._port: int = 8423
-        self._timeout: float = 2.0
+        self._timeout: float = 0.5
         self._capacity_mah: int = _DEFAULT_CAPACITY_MAH
 
         self._cache: Dict[str, Any] = {}
@@ -43,6 +44,8 @@ class PiSugarBattery(BatteryBase):
         self._available: bool = True
         self._retry_after: float = 0.0
         self._warned: bool = False
+        self._refresh_lock: threading.Lock = threading.Lock()
+        self._refresh_pending: bool = False
 
     # ------------------------------------------------------------------
     # BatteryBase interface
@@ -133,28 +136,47 @@ class PiSugarBattery(BatteryBase):
         self._cache_time = time.monotonic()
 
     def _cached(self, command: str) -> Optional[str]:
-        """Return a cached response, refreshing if stale."""
+        """Return the last cached response, triggering a background refresh if stale."""
         now = time.monotonic()
 
-        # If daemon was unreachable, periodically retry.
         if not self._available:
             if now < self._retry_after:
                 return self._cache.get(command)
-            # Try to reconnect.
-            probe = self._query("get battery")
-            if probe is not None:
-                logger.info("pisugar-power-manager reconnected")
-                self._available = True
-                self._warned = False
-                self._cache["get battery"] = probe
-            else:
-                self._retry_after = now + _RETRY_INTERVAL
-                return None
+            # Probe in background; return stale/None until it completes.
+            self._trigger_background_refresh()
+            return self._cache.get(command)
 
         if now - self._cache_time > _CACHE_TTL:
-            self._refresh_cache()
+            self._trigger_background_refresh()
 
         return self._cache.get(command)
+
+    def _trigger_background_refresh(self) -> None:
+        """Start a daemon thread to refresh the cache unless one is already running."""
+        with self._refresh_lock:
+            if self._refresh_pending:
+                return
+            self._refresh_pending = True
+        t = threading.Thread(target=self._background_refresh, daemon=True)
+        t.start()
+
+    def _background_refresh(self) -> None:
+        """Run _refresh_cache in a background thread, then clear the pending flag."""
+        try:
+            if not self._available:
+                probe = self._query("get battery")
+                if probe is not None:
+                    logger.info("pisugar-power-manager reconnected")
+                    self._available = True
+                    self._warned = False
+                    self._cache["get battery"] = probe
+                else:
+                    self._retry_after = time.monotonic() + _RETRY_INTERVAL
+                    return
+            self._refresh_cache()
+        finally:
+            with self._refresh_lock:
+                self._refresh_pending = False
 
     def _query(self, command: str) -> Optional[str]:
         """Send a single command and return the raw response line."""
