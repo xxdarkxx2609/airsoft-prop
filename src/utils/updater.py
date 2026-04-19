@@ -175,5 +175,16 @@ def apply_update(project_root: str) -> tuple[bool, str]:
     except (subprocess.TimeoutExpired, FileNotFoundError) as e:
         logger.warning("Could not update pip packages: %s", e)
 
+    # Refresh VERSION file so the app reads the correct version on next boot.
+    code, new_desc = _run_git(["describe", "--tags", "--always"], cwd=project_root)
+    if code == 0 and new_desc:
+        try:
+            from pathlib import Path
+            (Path(project_root) / "VERSION").write_text(
+                _strip_v_prefix(new_desc) + "\n", encoding="utf-8"
+            )
+        except OSError as e:
+            logger.warning("Could not update VERSION file: %s", e)
+
     logger.info("Update applied successfully")
     return True, "Update applied successfully. Restart required."
