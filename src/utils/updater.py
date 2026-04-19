@@ -153,6 +153,9 @@ def apply_update(project_root: str) -> tuple[bool, str]:
     """
     logger.info("Applying update...")
 
+    # Fetch tags explicitly so git describe resolves the new version correctly.
+    _run_git(["fetch", "--tags", "origin"], cwd=project_root)
+
     # Git pull
     code, output = _run_git(["pull", "origin", "main"], cwd=project_root)
     if code != 0:
