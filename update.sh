@@ -54,6 +54,10 @@ info "Update available: $BEHIND commit(s) behind"
 info "Pulling latest code..."
 git pull origin main 2>/dev/null || git pull origin master
 
+# Write VERSION file so the app can display the installed version
+# without relying on git describe at runtime (which may fail in systemd's PATH).
+git describe --tags --always 2>/dev/null | sed 's/^[vV]//' > "$INSTALL_DIR/VERSION" || true
+
 info "Updating Python dependencies..."
 "$VENV_DIR/bin/pip" install --no-cache-dir --quiet -r requirements.txt
 

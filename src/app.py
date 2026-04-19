@@ -384,8 +384,8 @@ class App:
                 logger.info("No WiFi connection — starting AP mode")
                 self.captive_portal.start_ap()
             self.captive_portal.start_monitor()
-        except ImportError:
-            logger.warning("Captive portal module not available — skipping")
+        except ImportError as e:
+            logger.warning("Captive portal module not available — %s", e)
 
     def _init_web_server(self) -> None:
         """Start the web server in a background thread."""
@@ -400,8 +400,8 @@ class App:
                     captive_portal=self.captive_portal,
                 )
                 self._web_server.start()
-            except ImportError:
-                logger.warning("Flask not available — web server disabled")
+            except ImportError as e:
+                logger.warning("Flask not available — web server disabled: %s", e)
 
     # ------------------------------------------------------------------
     # Cross-thread events

@@ -84,7 +84,17 @@ def _resolve_version() -> str:
     if getattr(sys, "frozen", False):
         return _read_version_file()
 
-    # 2. Git repository
+    # 2. VERSION file at project root (written by install.sh / update.sh)
+    version_path = get_project_root() / "VERSION"
+    if version_path.exists():
+        try:
+            version = version_path.read_text(encoding="utf-8").strip()
+            if version:
+                return _strip_v_prefix(version)
+        except (OSError, ValueError):
+            pass
+
+    # 3. Git repository
     return _git_describe()
 
 
@@ -112,8 +122,9 @@ def _git_describe() -> str:
         )
         if result.returncode == 0 and result.stdout.strip():
             return _strip_v_prefix(result.stdout.strip())
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        logger.warning("git describe failed — cannot determine version")
+        logger.warning("git describe failed (rc=%d): %s", result.returncode, result.stderr.strip())
+    except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+        logger.warning("git describe failed — %s", e)
     return "unknown"
 
 
