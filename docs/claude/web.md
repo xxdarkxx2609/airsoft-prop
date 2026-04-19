@@ -62,9 +62,12 @@ WebUI-Aenderungen werden ueber `App._event_queue` (`queue.Queue`, thread-safe) a
 - `CaptivePortalBase` (ABC): `start_ap()`, `stop_ap()`, `is_active()`, `get_ap_info()`, `start_monitor()`, `stop_monitor()`, `shutdown()`
 - `CaptivePortal` (real): Nimmt wlan0 von NetworkManager, setzt statische IP, startet hostapd+dnsmasq als Subprozesse mit Configs in `/tmp/`
 - DNS-Redirect: `address=/#/<AP-IP>` in dnsmasq -- alle DNS-Anfragen zeigen auf den Pi
-- Background-Monitor-Thread: prueft WiFi-Status alle 15s, startet AP automatisch bei Verbindungsverlust (thread-safe via `threading.Lock`)
+- Background-Monitor-Thread: prueft WiFi-Status alle 60s, startet AP automatisch bei Verbindungsverlust (thread-safe via `threading.Lock`)
 - `MockCaptivePortal`: Simuliert AP-Modus ohne echte Prozesse
 - System-Services via `systemctl mask` deaktiviert -- App steuert hostapd/dnsmasq direkt
+
+**`is_wifi_connected()` ist gecacht -- kein nmcli-Aufruf:**
+`is_wifi_connected()` gibt nur den gecachten `_wifi_connected: bool` zurueck (kein Subprocess, kein dbus). Der echte nmcli-Aufruf steckt in `_check_wifi_connected()` und wird nur vom Monitor-Thread (alle 60s) und einmalig im `__init__` aufgerufen. **Wichtig:** Der Cache wird im `__init__` initialisiert (`_wifi_connected = self._check_wifi_connected()`), damit `app.py` den korrekten WiFi-Zustand liest, bevor `start_monitor()` aufgerufen wird. Wer diese Initialisierung entfernt oder verschiebt, riskiert, dass das Geraet beim Start faelschlicherweise in den AP-Modus wechselt.
 
 **Captive Portal Detection:**
 - `/generate_204`, `/gen_204` -- Android: 302-Redirect auf `/wifi` wenn AP aktiv, sonst 204

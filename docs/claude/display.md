@@ -9,6 +9,20 @@
 - **Status-Info:** Eigener Screen -- Taste `*`, mehrseitig, Enter=weiter, `<-`=zurueck.
 - **Modusliste scrollbar:** Bei >3 Modi scrollt die Liste, Zeile 4 bleibt fixiert.
 
+## Performance-Regeln fuer render()
+
+`render()` wird vom Main-Loop mit 5 Hz aufgerufen (alle 200ms). Auf dem Pi Zero bedeutet jeder Subprocess-Spawn oder Netzwerkaufruf in `render()` mehrere hundert Millisekunden CPU-Last und kann `dbus-daemon` belasten.
+
+**Verboten in render():**
+- `subprocess.run()` / `subprocess.Popen()` -- auch `iwgetid`, `nmcli` etc.
+- Socket-Verbindungen oder HTTP-Requests
+- Direkte HAL-Methoden, die intern nmcli aufrufen (z.B. `portal.is_wifi_connected()` -- **war früher ein nmcli-Aufruf, ist jetzt gecacht**)
+
+**Pflicht bei langsamen Daten:**
+- Subprocess-Ergebnisse (z.B. SSID via `iwgetid`) mit TTL cachen -- Muster: `_cache_ts: float = 0.0` + `time.monotonic()`-Vergleich. Beispiel: `StatusScreen._get_ssid_cached()` (10s TTL).
+- Werte die sich selten aendern (z.B. Batterie-Icon im Menue, Schwelle 20%) mit laengerer TTL cachen. Beispiel: `MenuScreen._get_battery_level_cached()` (120s TTL).
+- Zustand der WiFi-Verbindung: Nur `portal.is_wifi_connected()` aufrufen -- gibt gecachten Bool zurueck, kein Subprocess.
+
 ## Numpad-Navigation
 
 Das Delock USB-Numpad sendet IMMER Ziffern-Keycodes (`KEY_KP0`-`KEY_KP9`), unabhaengig vom NumLock-Status. In Navigations-Screens werden 8/2/4/6 per `translate_digit_to_nav()` zu Up/Down/Left/Right uebersetzt. In Ziffern-Screens (Armed, Planting, Code-Eingabe) bleiben Ziffern unveraendert.

@@ -87,7 +87,11 @@ Diese Regeln gelten bei **jeder** Aenderung:
 
 6. **Main-Loop Resilienz**: `src/app.py` hat inneren try/except — ein einzelner Fehler crasht nicht die App. Nach 10 aufeinanderfolgenden Fehlern → sauberer Shutdown.
 
-7. **Graceful Shutdown (SIGTERM/SIGINT)**: Signal Handler registrieren sich in `App.run()` um `_running = False` zu setzen. Systemd sendet SIGTERM bei Restart/Stop. `TimeoutStopSec=15` in systemd unit gibt der App 15s für Cleanup. Flask Shutdown Hook + WebServer.stop() mit 5s Timeout. Ziel: Shutdown in < 5s statt 90s+ SIGKILL. **Bei Restart-Problemen: `systemctl stop airsoft-prop && journalctl -u airsoft-prop -n 100` prüfen.**
+7. **Kein subprocess/nmcli in render()**: `render()` laeuft 5x/sec. Jeder Subprocess-Spawn (auch `iwgetid`, `nmcli`) verursacht messbare CPU-Last auf dem Pi Zero und treibt `dbus-daemon` hoch. Langsame Werte immer cachen (TTL-Muster mit `time.monotonic()`). `portal.is_wifi_connected()` ist sicher (gecachter Bool). Details: [docs/claude/display.md](docs/claude/display.md).
+
+8. **`CaptivePortal._wifi_connected` wird im `__init__` geprimt**: `is_wifi_connected()` gibt nur einen gecachten Bool zurueck. Der Cache wird in `__init__` durch einen echten nmcli-Aufruf initialisiert -- **nicht entfernen**. Fehlt die Initialisierung, liest `app.py` `False` und startet faelschlicherweise den AP-Modus beim Boot.
+
+9. **Graceful Shutdown (SIGTERM/SIGINT)**: Signal Handler registrieren sich in `App.run()` um `_running = False` zu setzen. Systemd sendet SIGTERM bei Restart/Stop. `TimeoutStopSec=15` in systemd unit gibt der App 15s für Cleanup. Flask Shutdown Hook + WebServer.stop() mit 5s Timeout. Ziel: Shutdown in < 5s statt 90s+ SIGKILL. **Bei Restart-Problemen: `systemctl stop airsoft-prop && journalctl -u airsoft-prop -n 100` prüfen.**
 
 8. **Service Restart mit Verifizierung**: `api_service_restart()` in `src/web/server.py` verwendet direkt `subprocess.run()` (kein bash-wrapper) und verifiziert den Restart durch PID-Vergleich. Return-Value hat `restart_verified` flag — Web-UI (`app.js`) prüft dieses Flag vor Auto-Reload. **Logging ist essentiell** — bei Restart-Problemen `journalctl -u airsoft-prop -n 50` prüfen.
 
