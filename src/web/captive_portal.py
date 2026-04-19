@@ -155,17 +155,17 @@ class CaptivePortal(CaptivePortalBase):
 
             try:
                 # 1. Take wlan0 away from NetworkManager
-                self._run_cmd(["nmcli", "device", "set", "wlan0", "managed", "no"])
+                self._run_cmd(["sudo", "nmcli", "device", "set", "wlan0", "managed", "no"])
 
                 # 2. Configure interface with static IP
                 prefix = ipaddress.IPv4Network(
                     f"0.0.0.0/{self._netmask}", strict=False
                 ).prefixlen
-                self._run_cmd(["ip", "addr", "flush", "dev", "wlan0"])
+                self._run_cmd(["sudo", "ip", "addr", "flush", "dev", "wlan0"])
                 self._run_cmd(
-                    ["ip", "addr", "add", f"{self._ip}/{prefix}", "dev", "wlan0"]
+                    ["sudo", "ip", "addr", "add", f"{self._ip}/{prefix}", "dev", "wlan0"]
                 )
-                self._run_cmd(["ip", "link", "set", "wlan0", "up"])
+                self._run_cmd(["sudo", "ip", "link", "set", "wlan0", "up"])
 
                 # 3. Write config files
                 self._write_hostapd_conf()
@@ -173,7 +173,7 @@ class CaptivePortal(CaptivePortalBase):
 
                 # 4. Start hostapd
                 self._hostapd_proc = subprocess.Popen(
-                    ["hostapd", _HOSTAPD_CONF],
+                    ["sudo", "hostapd", _HOSTAPD_CONF],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.PIPE,
                 )
@@ -187,7 +187,7 @@ class CaptivePortal(CaptivePortalBase):
 
                 # 5. Start dnsmasq
                 self._dnsmasq_proc = subprocess.Popen(
-                    ["dnsmasq", "-C", _DNSMASQ_CONF, "--no-daemon", "--log-queries"],
+                    ["sudo", "dnsmasq", "-C", _DNSMASQ_CONF, "--no-daemon", "--log-queries"],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.PIPE,
                 )
@@ -224,13 +224,13 @@ class CaptivePortal(CaptivePortalBase):
 
             # 2. Clean up interface
             try:
-                self._run_cmd(["ip", "addr", "flush", "dev", "wlan0"])
+                self._run_cmd(["sudo", "ip", "addr", "flush", "dev", "wlan0"])
             except Exception:
                 logger.warning("Failed to flush wlan0 addresses")
 
             # 3. Return wlan0 to NetworkManager
             try:
-                self._run_cmd(["nmcli", "device", "set", "wlan0", "managed", "yes"])
+                self._run_cmd(["sudo", "nmcli", "device", "set", "wlan0", "managed", "yes"])
             except Exception:
                 logger.warning("Failed to re-enable NM management of wlan0")
 
@@ -390,8 +390,8 @@ class CaptivePortal(CaptivePortalBase):
         self._hostapd_proc = None
         self._dnsmasq_proc = None
         try:
-            self._run_cmd(["ip", "addr", "flush", "dev", "wlan0"])
-            self._run_cmd(["nmcli", "device", "set", "wlan0", "managed", "yes"])
+            self._run_cmd(["sudo", "ip", "addr", "flush", "dev", "wlan0"])
+            self._run_cmd(["sudo", "nmcli", "device", "set", "wlan0", "managed", "yes"])
         except Exception:
             pass
         self._ap_active = False

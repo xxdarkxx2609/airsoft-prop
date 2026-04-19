@@ -441,6 +441,12 @@ pi ALL=(root) NOPASSWD: /usr/bin/nmcli device wifi rescan
 pi ALL=(root) NOPASSWD: /usr/bin/nmcli device wifi connect *
 pi ALL=(root) NOPASSWD: /usr/bin/nmcli device disconnect wlan0
 pi ALL=(root) NOPASSWD: /usr/bin/nmcli connection delete *
+pi ALL=(root) NOPASSWD: /usr/bin/nmcli device set wlan0 managed yes
+pi ALL=(root) NOPASSWD: /usr/bin/nmcli device set wlan0 managed no
+pi ALL=(root) NOPASSWD: /usr/sbin/ip addr * dev wlan0
+pi ALL=(root) NOPASSWD: /usr/sbin/ip link set wlan0 *
+pi ALL=(root) NOPASSWD: /usr/sbin/hostapd *
+pi ALL=(root) NOPASSWD: /usr/sbin/dnsmasq *
 pi ALL=(root) NOPASSWD: /usr/bin/systemctl restart airsoft-prop
 pi ALL=(root) NOPASSWD: /usr/bin/systemctl stop airsoft-prop
 SUDOEOF
