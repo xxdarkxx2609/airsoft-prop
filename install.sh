@@ -388,8 +388,9 @@ cd "$INSTALL_DIR"
 
 # Write VERSION file so the app can display the installed version
 # without relying on git describe at runtime (which may fail in systemd's PATH).
-sudo -u pi git -C "$INSTALL_DIR" describe --tags --always 2>/dev/null \
-    | sed 's/^[vV]//' > "$INSTALL_DIR/VERSION" || true
+# Run the full pipeline as pi so the file is owned by pi and writable by the app.
+sudo -u pi bash -c "git -C '$INSTALL_DIR' describe --tags --always 2>/dev/null \
+    | sed 's/^[vV]//' > '$INSTALL_DIR/VERSION'" || true
 
 # ---------------------------------------------------------------------------
 # Step 5: Python virtual environment
