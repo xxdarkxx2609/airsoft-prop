@@ -6,6 +6,7 @@ shortcuts to the status and update screens.
 
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING, Optional
 
 from src.hal.base import DisplayBase
@@ -49,11 +50,16 @@ class MenuScreen(BaseScreen):
         /        — open the update screen
     """
 
+    # Re-query battery level at most this often (seconds).
+    _BATTERY_POLL_INTERVAL: float = 120.0
+
     def __init__(self, app: App) -> None:
         super().__init__(app)
         self._cursor_index: int = 0
         self._scroll_offset: int = 0
         self._confirm_exit: bool = False
+        self._battery_level_cache: Optional[int] = None
+        self._battery_cache_ts: float = 0.0
 
     # -- lifecycle ------------------------------------------------------------
 
@@ -119,13 +125,23 @@ class MenuScreen(BaseScreen):
         portal = self.app.captive_portal
         wifi_on = portal is not None and (portal.is_active() or portal.is_wifi_connected())
         wifi_icon = chr(CHAR_WIFI_ON if wifi_on else CHAR_WIFI_OFF)
-        battery_level = self.app.battery.get_battery_level()
+        battery_level = self._get_battery_level_cached()
         if battery_level is not None:
             bat_icon = chr(CHAR_BATTERY_FULL if battery_level > 20 else CHAR_BATTERY_LOW)
             status_bar = f"* Status  / Upd {bat_icon}{wifi_icon}"
         else:
             status_bar = f"* Status  / Upd  {wifi_icon}"
         display.write_line(3, pad_text(status_bar))
+
+    # -- helpers --------------------------------------------------------------
+
+    def _get_battery_level_cached(self) -> Optional[int]:
+        """Return battery level, refreshing at most once per ``_BATTERY_POLL_INTERVAL``."""
+        now = time.monotonic()
+        if now - self._battery_cache_ts >= self._BATTERY_POLL_INTERVAL:
+            self._battery_level_cache = self.app.battery.get_battery_level()
+            self._battery_cache_ts = now
+        return self._battery_level_cache
 
     # -- input ----------------------------------------------------------------
 

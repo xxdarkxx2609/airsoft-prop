@@ -115,8 +115,8 @@ class CaptivePortal(CaptivePortalBase):
         self._hostapd_proc: Optional[subprocess.Popen] = None
         self._dnsmasq_proc: Optional[subprocess.Popen] = None
 
-        # Cached WiFi state — updated by monitor thread, safe to read from any thread.
-        self._wifi_connected: bool = False
+        # Cached WiFi state — primed at init, updated by monitor thread.
+        self._wifi_connected: bool = self._check_wifi_connected()
 
         # Monitor thread
         self._monitor_thread: Optional[threading.Thread] = None
@@ -277,8 +277,6 @@ class CaptivePortal(CaptivePortalBase):
         )
         self._monitor_thread.start()
         logger.info("Captive portal monitor started (interval=%ss)", _MONITOR_INTERVAL)
-        # Prime the cache so is_wifi_connected() is accurate before the first interval.
-        self._check_wifi_connected()
 
     def stop_monitor(self) -> None:
         """Signal the monitor thread to stop.
