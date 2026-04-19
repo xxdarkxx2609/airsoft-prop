@@ -290,15 +290,33 @@ class CaptivePortal(CaptivePortalBase):
     # -- internal helpers ----------------------------------------------------
 
     def _monitor_loop(self) -> None:
-        """Background loop: check WiFi every _MONITOR_INTERVAL seconds."""
+        """Background loop: check WiFi every _MONITOR_INTERVAL seconds.
+
+        On first detection of a dropped connection, waits _RECONNECT_GRACE
+        seconds so NetworkManager can auto-reconnect before enabling the AP.
+        A second check confirms the loss is real before starting the AP.
+        """
         while not self._monitor_stop.is_set():
             self._monitor_stop.wait(_MONITOR_INTERVAL)
             if self._monitor_stop.is_set():
                 break
 
             try:
+                if self._ap_active or self.is_wifi_connected():
+                    continue
+
+                logger.warning(
+                    "WiFi connection lost — waiting %.0fs for NM to reconnect",
+                    _RECONNECT_GRACE,
+                )
+                # Give NetworkManager a chance to auto-reconnect.
+                self._monitor_stop.wait(_RECONNECT_GRACE)
+                if self._monitor_stop.is_set():
+                    break
+
+                # Confirm the loss is still present before starting AP.
                 if not self._ap_active and not self.is_wifi_connected():
-                    logger.warning("WiFi connection lost — starting AP")
+                    logger.warning("WiFi still gone after grace period — starting AP")
                     self.start_ap()
             except Exception:
                 logger.exception("Error in captive portal monitor")
