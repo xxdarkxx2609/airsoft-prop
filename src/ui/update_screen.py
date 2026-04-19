@@ -24,6 +24,12 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
+def _short_version(version: str) -> str:
+    """Strip the git hash from a version string (e.g. 1.0.0-37-g66cf51b -> 1.0.0-37)."""
+    parts = version.rsplit("-g", 1)
+    return parts[0] if len(parts) == 2 and parts[1].isalnum() else version
+
+
 class _State(Enum):
     """Internal states of the update screen."""
 
@@ -107,7 +113,7 @@ class UpdateScreen(BaseScreen):
 
     def _render_up_to_date(self, display: DisplayBase) -> None:
         info = self._update_info
-        version = info.current_version if info else "?"
+        version = _short_version(info.current_version) if info else "?"
         display.write_line(0, center_text("=== Update ==="))
         display.write_line(1, center_text("Up to date!"))
         display.write_line(2, pad_text(f"Version: {version}"))
@@ -116,8 +122,8 @@ class UpdateScreen(BaseScreen):
     def _render_update_available(self, display: DisplayBase) -> None:
         info = self._update_info
         if info:
-            current = info.current_version
-            remote = info.remote_version or "?"
+            current = _short_version(info.current_version)
+            remote = _short_version(info.remote_version) if info.remote_version else "?"
             behind = info.commits_behind
         else:
             current = remote = "?"
