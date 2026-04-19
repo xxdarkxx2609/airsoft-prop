@@ -34,8 +34,6 @@ tournament:
   settings: {}
 system:
   service_name: airsoft-prop
-web:
-  password_hash: ''
 modes:
   random_code:
     default_digits: 10

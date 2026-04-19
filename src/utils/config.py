@@ -277,6 +277,31 @@ class Config:
             yaml.dump(usb_keys, f, default_flow_style=False, allow_unicode=True)
         logger.info("USB keys saved to %s", config_path)
 
+    def load_web_config(self) -> dict[str, str]:
+        """Load web interface config from web.yaml.
+
+        Returns:
+            Dict with ``password_hash`` key. Returns empty dict if the file
+            does not exist.
+        """
+        data = _load_custom_yaml("web.yaml")
+        return {"password_hash": data.get("password_hash", "") if data else ""}
+
+    def save_web_config(self, web_config: dict[str, str]) -> None:
+        """Write web interface config to web.yaml.
+
+        Intentionally separate from user.yaml so that ``reset_user_config()``
+        never clears the admin password.
+
+        Args:
+            web_config: Dict with ``password_hash`` key.
+        """
+        _ensure_custom_dir()
+        config_path = _CUSTOM_DIR / "web.yaml"
+        with open(config_path, "w", encoding="utf-8") as f:
+            yaml.dump(web_config, f, default_flow_style=False, allow_unicode=True)
+        logger.info("Web config saved to %s", config_path)
+
     def save_hardware_config(self, hal_overrides: dict[str, str]) -> None:
         """Save HAL module selections to custom/hardware.yaml.
 

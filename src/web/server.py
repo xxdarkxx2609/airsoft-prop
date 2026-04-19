@@ -161,7 +161,7 @@ def create_app(
     # ------------------------------------------------------------------
 
     def _password_hash() -> str:
-        return config.get("web", "password_hash", default="") or ""
+        return config.load_web_config().get("password_hash", "") or ""
 
     def _password_set() -> bool:
         return bool(_password_hash())
@@ -248,7 +248,7 @@ def create_app(
         if new_pw != confirm:
             return jsonify({"success": False, "message": "Passwords do not match"}), 400
         new_hash = generate_password_hash(new_pw)
-        config.save_user_config({"web.password_hash": new_hash})
+        config.save_web_config({"password_hash": new_hash})
         session.permanent = True
         session["authenticated"] = True
         logger.info("Web interface password updated")
