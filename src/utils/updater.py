@@ -83,6 +83,16 @@ def check_for_updates(project_root: str) -> UpdateInfo:
         )
     current_version = _strip_v_prefix(current_desc)
 
+    # Check connectivity before touching the object store
+    if not check_internet():
+        return UpdateInfo(
+            current_version=current_version,
+            remote_version=None,
+            update_available=False,
+            commits_behind=0,
+            error="Cannot reach remote",
+        )
+
     # Fetch from remote (including tags)
     code, _ = _run_git(["fetch", "--tags", "origin"], cwd=project_root)
     if code != 0:
