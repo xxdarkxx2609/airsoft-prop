@@ -6,6 +6,10 @@
 
 async function apiGet(url) {
     const resp = await fetch(url);
+    if (resp.status === 401) {
+        window.location.href = "/login?next=" + encodeURIComponent(window.location.pathname);
+        return {};
+    }
     return resp.json();
 }
 
@@ -15,6 +19,10 @@ async function apiPost(url, data) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
     });
+    if (resp.status === 401) {
+        window.location.href = "/login?next=" + encodeURIComponent(window.location.pathname);
+        return {};
+    }
     return resp.json();
 }
 

@@ -20,10 +20,22 @@
             <a href="/battery" class="{% if active == 'battery' %}active{% endif %}">Battery</a>
             <a href="/logs" class="{% if active == 'logs' %}active{% endif %}">Logs</a>
             <a href="/update" class="{% if active == 'update' %}active{% endif %}">Update</a>
+            <a href="/security" class="{% if active == 'security' %}active{% endif %}">Security</a>
         </nav>
+        {% if is_authenticated and password_set %}
+        <form method="post" action="/logout" class="logout-form">
+            <button type="submit" class="btn btn-secondary btn-small">Logout</button>
+        </form>
+        {% endif %}
     </header>
 
     <main>
+        {% if no_password_warning %}
+        <div class="warning-banner">
+            No admin password is set — anyone on the network can change device settings.
+            <a href="/security">Set a password</a>
+        </div>
+        {% endif %}
         {% block content %}{% endblock %}
     </main>
 

@@ -13,12 +13,16 @@ from __future__ import annotations
 
 import os
 import platform
+import secrets
 import threading
 import time
+from datetime import timedelta
+from functools import wraps
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
-from flask import Flask, jsonify, redirect, render_template, request
+from flask import Flask, g, jsonify, redirect, render_template, request, session, url_for
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from src.hal.base import BatteryBase
 from src.utils.config import Config
@@ -117,7 +121,22 @@ def create_app(
         template_folder=str(_TEMPLATE_DIR),
         static_folder=str(_STATIC_DIR),
     )
-    app.config["SECRET_KEY"] = "airsoft-prop-secret"
+    _secret_key_file = Path(__file__).parent.parent.parent / "config" / "custom" / "secret_key"
+
+    def _load_or_create_secret_key() -> str:
+        _secret_key_file.parent.mkdir(parents=True, exist_ok=True)
+        if _secret_key_file.exists():
+            key = _secret_key_file.read_text().strip()
+            if key:
+                return key
+        key = secrets.token_hex(32)
+        _secret_key_file.write_text(key)
+        return key
+
+    app.config["SECRET_KEY"] = _load_or_create_secret_key()
+    app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=8)
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
 
     wifi = create_wifi_manager(mock=mock)
 
@@ -138,50 +157,157 @@ def create_app(
         return response
 
     # ------------------------------------------------------------------
+    # Auth helpers
+    # ------------------------------------------------------------------
+
+    def _password_hash() -> str:
+        return config.get("web", "password_hash", default="") or ""
+
+    def _password_set() -> bool:
+        return bool(_password_hash())
+
+    def _is_authenticated() -> bool:
+        return session.get("authenticated") is True
+
+    def require_auth_page(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            if not _password_set():
+                g.no_password_warning = True
+                return f(*args, **kwargs)
+            if not _is_authenticated():
+                return redirect(url_for("login") + f"?next={request.path}")
+            g.no_password_warning = False
+            return f(*args, **kwargs)
+        return decorated
+
+    def require_auth_api(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            if not _password_set():
+                return f(*args, **kwargs)
+            if not _is_authenticated():
+                return jsonify({"success": False, "message": "Not authenticated"}), 401
+            return f(*args, **kwargs)
+        return decorated
+
+    @app.context_processor
+    def _inject_auth_state():
+        return {
+            "is_authenticated": _is_authenticated(),
+            "password_set": _password_set(),
+            "no_password_warning": getattr(g, "no_password_warning", False),
+        }
+
+    # ------------------------------------------------------------------
+    # Login / Logout / Security routes
+    # ------------------------------------------------------------------
+
+    @app.route("/login", methods=["GET"])
+    def login():
+        if _is_authenticated() or not _password_set():
+            return redirect(url_for("index"))
+        next_url = request.args.get("next", "")
+        return render_template("login.html", next=next_url, error=None)
+
+    @app.route("/login", methods=["POST"])
+    def login_post():
+        password = request.form.get("password", "")
+        next_url = request.form.get("next", "") or url_for("index")
+        if not next_url.startswith("/"):
+            next_url = url_for("index")
+        stored_hash = _password_hash()
+        if not stored_hash or check_password_hash(stored_hash, password):
+            session.permanent = True
+            session["authenticated"] = True
+            return redirect(next_url)
+        return render_template("login.html", next=next_url, error="Incorrect password")
+
+    @app.route("/logout", methods=["POST"])
+    def logout():
+        session.clear()
+        return redirect(url_for("login"))
+
+    @app.route("/security")
+    @require_auth_page
+    def security_page():
+        return render_template("security.html", active="security")
+
+    @app.route("/api/security/password", methods=["POST"])
+    @require_auth_api
+    def api_set_password():
+        data = request.get_json() or {}
+        current = data.get("current_password", "")
+        new_pw = data.get("new_password", "")
+        confirm = data.get("confirm_password", "")
+        stored_hash = _password_hash()
+        if stored_hash and not check_password_hash(stored_hash, current):
+            return jsonify({"success": False, "message": "Current password is incorrect"}), 403
+        if len(new_pw) < 4:
+            return jsonify({"success": False, "message": "Password must be at least 4 characters"}), 400
+        if new_pw != confirm:
+            return jsonify({"success": False, "message": "Passwords do not match"}), 400
+        new_hash = generate_password_hash(new_pw)
+        config.save_user_config({"web.password_hash": new_hash})
+        session.permanent = True
+        session["authenticated"] = True
+        logger.info("Web interface password updated")
+        return jsonify({"success": True, "message": "Password updated successfully"})
+
+    # ------------------------------------------------------------------
     # Pages
     # ------------------------------------------------------------------
 
     @app.route("/")
+    @require_auth_page
     def index():
         """Redirect to WiFi page as main landing."""
         return render_template("wifi.html", active="wifi")
 
     @app.route("/wifi")
+    @require_auth_page
     def wifi_page():
         """WiFi configuration page."""
         return render_template("wifi.html", active="wifi")
 
     @app.route("/config")
+    @require_auth_page
     def config_page():
         """Game settings page."""
         return render_template("config.html", active="config", config=config)
 
     @app.route("/system")
+    @require_auth_page
     def system_page():
         """System information page."""
         return render_template("system.html", active="system")
 
     @app.route("/battery")
+    @require_auth_page
     def battery_page():
         """Battery information page."""
         return render_template("battery.html", active="battery")
 
     @app.route("/logs")
+    @require_auth_page
     def logs_page():
         """Log viewer page."""
         return render_template("logs.html", active="logs")
 
     @app.route("/tournament")
+    @require_auth_page
     def tournament_page():
         """Tournament mode configuration page."""
         return render_template("tournament.html", active="tournament")
 
     @app.route("/update")
+    @require_auth_page
     def update_page():
         """Software update page."""
         return render_template("update.html", active="update")
 
     @app.route("/hardware")
+    @require_auth_page
     def hardware_page():
         """Hardware module selection page."""
         return render_template("hardware.html", active="hardware")
@@ -191,6 +317,7 @@ def create_app(
     # ------------------------------------------------------------------
 
     @app.route("/api/hardware", methods=["GET"])
+    @require_auth_api
     def api_hardware_get():
         """Return current HAL selections and available modules per component."""
         current_hal = config.get("hal", default={})
@@ -201,6 +328,7 @@ def create_app(
         })
 
     @app.route("/api/hardware", methods=["POST"])
+    @require_auth_api
     def api_hardware_set():
         """Save HAL module selections to custom/hardware.yaml.
 
@@ -278,6 +406,7 @@ def create_app(
     # ------------------------------------------------------------------
 
     @app.route("/api/wifi/status")
+    @require_auth_api
     def api_wifi_status():
         """Get current WiFi status."""
         status = wifi.get_status()
@@ -291,6 +420,7 @@ def create_app(
         })
 
     @app.route("/api/wifi/scan")
+    @require_auth_api
     def api_wifi_scan():
         """Scan for available WiFi networks."""
         networks = wifi.scan()
@@ -302,6 +432,7 @@ def create_app(
         } for n in networks])
 
     @app.route("/api/wifi/connect", methods=["POST"])
+    @require_auth_api
     def api_wifi_connect():
         """Connect to a WiFi network.
 
@@ -333,17 +464,20 @@ def create_app(
         return jsonify({"success": success, "message": message})
 
     @app.route("/api/wifi/disconnect", methods=["POST"])
+    @require_auth_api
     def api_wifi_disconnect():
         """Disconnect from current WiFi."""
         success = wifi.disconnect()
         return jsonify({"success": success})
 
     @app.route("/api/wifi/saved")
+    @require_auth_api
     def api_wifi_saved():
         """Get saved networks."""
         return jsonify(wifi.get_saved_networks())
 
     @app.route("/api/wifi/forget", methods=["POST"])
+    @require_auth_api
     def api_wifi_forget():
         """Forget a saved network."""
         data = request.get_json()
@@ -353,6 +487,7 @@ def create_app(
         return jsonify({"success": success})
 
     @app.route("/api/wifi/ap-status")
+    @require_auth_api
     def api_ap_status():
         """Get access point status."""
         portal = app.config.get("CAPTIVE_PORTAL")
@@ -365,6 +500,7 @@ def create_app(
     # ------------------------------------------------------------------
 
     @app.route("/api/tournament")
+    @require_auth_api
     def api_tournament_get():
         """Get tournament configuration and available modes."""
         ba = app.config.get("PROP_APP")
@@ -406,6 +542,7 @@ def create_app(
         })
 
     @app.route("/api/tournament", methods=["POST"])
+    @require_auth_api
     def api_tournament_set():
         """Save tournament configuration."""
         data = request.get_json()
@@ -497,6 +634,7 @@ def create_app(
     # ------------------------------------------------------------------
 
     @app.route("/api/config")
+    @require_auth_api
     def api_config_get():
         """Get current configuration."""
         return jsonify({
@@ -534,6 +672,7 @@ def create_app(
         })
 
     @app.route("/api/config", methods=["POST"])
+    @require_auth_api
     def api_config_set():
         """Update configuration values.
 
@@ -584,6 +723,7 @@ def create_app(
         return jsonify({"success": True, "message": "Configuration saved"})
 
     @app.route("/api/config/reset", methods=["POST"])
+    @require_auth_api
     def api_config_reset():
         """Reset all settings to defaults by removing user.yaml."""
         config.reset_user_config()
@@ -612,6 +752,7 @@ def create_app(
     # ------------------------------------------------------------------
 
     @app.route("/api/system")
+    @require_auth_api
     def api_system_info():
         """Get system information."""
         info = _get_system_info()
@@ -624,6 +765,7 @@ def create_app(
     # ------------------------------------------------------------------
 
     @app.route("/api/battery")
+    @require_auth_api
     def api_battery_info():
         """Get battery status and metrics."""
         bat = app.config.get("BATTERY")
@@ -657,6 +799,7 @@ def create_app(
     # ------------------------------------------------------------------
 
     @app.route("/api/logs")
+    @require_auth_api
     def api_logs_list():
         """List available log files (newest first)."""
         log_dir_name = config.get("logging", "log_dir", default="logs")
@@ -676,6 +819,7 @@ def create_app(
         } for f in files])
 
     @app.route("/api/logs/<filename>")
+    @require_auth_api
     def api_logs_view(filename):
         """View last N lines of a log file.
 
@@ -708,6 +852,7 @@ def create_app(
     # ------------------------------------------------------------------
 
     @app.route("/api/update/check")
+    @require_auth_api
     def api_update_check():
         """Check for available updates."""
         if mock:
@@ -737,6 +882,7 @@ def create_app(
             return jsonify({"available": False, "message": str(e)}), 500
 
     @app.route("/api/update/install", methods=["POST"])
+    @require_auth_api
     def api_update_install():
         """Install available updates."""
         if mock:
@@ -989,11 +1135,13 @@ def create_app(
         return sticks
 
     @app.route("/usb-keys")
+    @require_auth_page
     def usb_keys_page():
         """USB key management page."""
         return render_template("usb_keys.html", active="usb-keys")
 
     @app.route("/api/usb-keys")
+    @require_auth_api
     def api_usb_keys_list():
         """List all registered USB keys and current security mode."""
         keys = config.load_usb_keys()
@@ -1007,11 +1155,13 @@ def create_app(
         })
 
     @app.route("/api/usb-keys/usb-sticks")
+    @require_auth_api
     def api_usb_sticks():
         """List currently mounted USB sticks."""
         return jsonify({"sticks": _enumerate_usb_sticks()})
 
     @app.route("/api/usb-keys/generate", methods=["POST"])
+    @require_auth_api
     def api_usb_keys_generate():
         """Generate a new USB key token and write it to a USB stick.
 
@@ -1114,6 +1264,7 @@ def create_app(
         })
 
     @app.route("/api/usb-keys/<key_type>/<key_id>", methods=["DELETE"])
+    @require_auth_api
     def api_usb_keys_delete(key_type: str, key_id: str):
         """Revoke a registered USB key by ID."""
         if key_type not in ("defuse", "tournament"):
@@ -1149,11 +1300,13 @@ def create_app(
     # ------------------------------------------------------------------
 
     @app.route("/sounds")
+    @require_auth_page
     def sounds_page():
         """Custom sound management page."""
         return render_template("sounds.html", active="sounds")
 
     @app.route("/api/sounds")
+    @require_auth_api
     def api_sounds_list():
         """List custom sound files in custom/sounds/.
 
@@ -1179,6 +1332,7 @@ def create_app(
         return jsonify({"sounds": sounds})
 
     @app.route("/api/sounds/upload", methods=["POST"])
+    @require_auth_api
     def api_sounds_upload():
         """Upload a custom WAV sound file to custom/sounds/.
 
@@ -1229,6 +1383,7 @@ def create_app(
         })
 
     @app.route("/api/sounds/<filename>", methods=["DELETE"])
+    @require_auth_api
     def api_sounds_delete(filename: str):
         """Delete a custom sound file from custom/sounds/."""
         # Sanitize
@@ -1252,6 +1407,7 @@ def create_app(
         })
 
     @app.route("/api/sounds/preview/<filename>")
+    @require_auth_api
     def api_sounds_preview(filename: str):
         """Serve a custom sound file for browser playback."""
         if ".." in filename or "/" in filename or "\\" in filename:
@@ -1268,6 +1424,7 @@ def create_app(
     # ------------------------------------------------------------------
 
     @app.route("/api/service/restart", methods=["POST"])
+    @require_auth_api
     def api_service_restart():
         """Restart the systemd service with verification.
 

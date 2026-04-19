@@ -609,3 +609,76 @@ footer {
         font-size: 0.8rem;
     }
 }
+
+/* Login page */
+.login-body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 16px;
+}
+
+.login-container {
+    width: 100%;
+    max-width: 360px;
+}
+
+.login-card {
+    text-align: center;
+}
+
+.login-card h1 {
+    font-size: 1.5rem;
+    margin-bottom: 4px;
+}
+
+.login-card h2 {
+    font-size: 1rem;
+    color: var(--text-dim);
+    margin-bottom: 20px;
+    border: none;
+    padding: 0;
+}
+
+.login-card .form-group {
+    text-align: left;
+}
+
+.login-btn {
+    width: 100%;
+    padding: 10px;
+    font-size: 1rem;
+    justify-content: center;
+}
+
+/* Warning banner */
+.warning-banner {
+    background: rgba(243, 156, 18, 0.1);
+    border: 1px solid var(--warning);
+    border-radius: var(--radius);
+    color: var(--warning);
+    padding: 10px 16px;
+    margin: 0 0 12px 0;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.warning-banner a {
+    color: var(--warning);
+    font-weight: bold;
+    margin-left: 6px;
+}
+
+/* Logout button in header */
+.logout-form {
+    margin-left: auto;
+    padding-bottom: 8px;
+    flex-shrink: 0;
+}
+
+.message.warning {
+    background: rgba(243, 156, 18, 0.15);
+    color: var(--warning);
+    border: 1px solid var(--warning);
+}

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+    <h2>Security</h2>
+    {% if not password_set %}
+    <p class="message warning">No password is set. Anyone on the network can change device settings.</p>
+    {% endif %}
+    <div id="security-message" class="message hidden"></div>
+    <form onsubmit="changePassword(event)">
+        {% if password_set %}
+        <div class="form-group">
+            <label for="current-password">Current Password</label>
+            <input type="password" id="current-password" autocomplete="current-password">
+        </div>
+        {% endif %}
+        <div class="form-group">
+            <label for="new-password">New Password</label>
+            <input type="password" id="new-password" autocomplete="new-password" minlength="4">
+        </div>
+        <div class="form-group">
+            <label for="confirm-password">Confirm New Password</label>
+            <input type="password" id="confirm-password" autocomplete="new-password">
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn">Set Password</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function changePassword(event) {
+    event.preventDefault();
+    const data = {
+        current_password: document.getElementById("current-password")?.value || "",
+        new_password: document.getElementById("new-password").value,
+        confirm_password: document.getElementById("confirm-password").value,
+    };
+    const result = await apiPost("/api/security/password", data);
+    showMessage("security-message", result.message, result.success ? "success" : "error");
+    if (result.success) {
+        document.getElementById("new-password").value = "";
+        document.getElementById("confirm-password").value = "";
+        if (document.getElementById("current-password")) {
+            document.getElementById("current-password").value = "";
+        }
+        setTimeout(() => location.reload(), 1500);
+    }
+}
+</script>
+{% endblock %}
