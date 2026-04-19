@@ -447,8 +447,10 @@ pi ALL=(root) NOPASSWD: /usr/sbin/ip addr * dev wlan0
 pi ALL=(root) NOPASSWD: /usr/sbin/ip link set wlan0 *
 pi ALL=(root) NOPASSWD: /usr/sbin/hostapd *
 pi ALL=(root) NOPASSWD: /usr/sbin/dnsmasq *
-pi ALL=(root) NOPASSWD: /usr/sbin/iptables -t nat -A PREROUTING *
-pi ALL=(root) NOPASSWD: /usr/sbin/iptables -t nat -D PREROUTING *
+pi ALL=(root) NOPASSWD: /usr/sbin/nft add table ip airsoft_nat
+pi ALL=(root) NOPASSWD: /usr/sbin/nft add chain ip airsoft_nat prerouting *
+pi ALL=(root) NOPASSWD: /usr/sbin/nft add rule ip airsoft_nat prerouting *
+pi ALL=(root) NOPASSWD: /usr/sbin/nft delete table ip airsoft_nat
 pi ALL=(root) NOPASSWD: /usr/bin/systemctl restart airsoft-prop
 pi ALL=(root) NOPASSWD: /usr/bin/systemctl stop airsoft-prop
 SUDOEOF

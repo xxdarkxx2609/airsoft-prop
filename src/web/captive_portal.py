@@ -360,28 +360,29 @@ class CaptivePortal(CaptivePortalBase):
         logger.debug("Wrote %s", _DNSMASQ_CONF)
 
     def _start_redirect_server(self) -> None:
-        """Add iptables rule to redirect port 80 → 8080 on wlan0.
+        """Add nft rule to redirect port 80 → 8080 on wlan0.
 
         OS captive portal probes always target port 80. Flask runs on 8080,
         so without this redirect the probes get no response and the phone
-        never opens the captive portal browser. iptables NAT avoids needing
-        a privileged Python listener.
+        never opens the captive portal browser. nft NAT avoids needing
+        a privileged Python listener. A dedicated airsoft_nat table is used
+        so teardown is a single delete-table command.
         """
+        self._run_cmd(["sudo", "nft", "add", "table", "ip", "airsoft_nat"])
         self._run_cmd([
-            "sudo", "iptables", "-t", "nat", "-A", "PREROUTING",
-            "-i", "wlan0", "-p", "tcp", "--dport", "80",
-            "-j", "REDIRECT", "--to-port", "8080",
+            "sudo", "nft", "add", "chain", "ip", "airsoft_nat", "prerouting",
+            "{", "type", "nat", "hook", "prerouting", "priority", "dstnat", ";", "}",
         ])
-        logger.debug("iptables: port 80 → 8080 redirect added")
+        self._run_cmd([
+            "sudo", "nft", "add", "rule", "ip", "airsoft_nat", "prerouting",
+            "iifname", "wlan0", "tcp", "dport", "80", "redirect", "to", ":8080",
+        ])
+        logger.debug("nft: port 80 → 8080 redirect added")
 
     def _stop_redirect_server(self) -> None:
-        """Remove the iptables port-80 redirect rule."""
-        self._run_cmd([
-            "sudo", "iptables", "-t", "nat", "-D", "PREROUTING",
-            "-i", "wlan0", "-p", "tcp", "--dport", "80",
-            "-j", "REDIRECT", "--to-port", "8080",
-        ])
-        logger.debug("iptables: port 80 → 8080 redirect removed")
+        """Remove the nft port-80 redirect by deleting the airsoft_nat table."""
+        self._run_cmd(["sudo", "nft", "delete", "table", "ip", "airsoft_nat"])
+        logger.debug("nft: port 80 → 8080 redirect removed")
 
     @staticmethod
     def _run_cmd(cmd: list[str], timeout: int = 10) -> subprocess.CompletedProcess:
