@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 # Flash duration in seconds.
-_BLINK_ON_TIME: float = 0.12   # 120 ms on
+_BLINK_ON_TIME: float = 0.20   # 200 ms on
 _BLINK_OFF_TIME: float = 0.05  # 50 ms off (tail — keeps total cycle short)
 
 
