@@ -33,8 +33,8 @@ from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-# Target frame time for the main loop (~30 fps).
-_LOOP_INTERVAL: float = 1.0 / 15.0
+# Target frame time for the main loop (~5 fps — sufficient for LCD UI).
+_LOOP_INTERVAL: float = 1.0 / 5.0
 
 
 class App:
