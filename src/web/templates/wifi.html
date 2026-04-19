@@ -2,6 +2,21 @@
 
 {% block content %}
 <section class="card">
+    <h2>Access Point</h2>
+    <p style="color: var(--text-muted); margin-bottom: 1rem; font-size: 0.9rem;">
+        Force AP mode on next boot, even when the Pi is connected to a known WiFi network.
+        Disable before returning home to restore normal WiFi behaviour.
+    </p>
+    <div class="form-group">
+        <label for="force-ap-toggle">
+            <input type="checkbox" id="force-ap-toggle" onchange="setForceAp(this.checked)">
+            Force AP mode (for field testing)
+        </label>
+    </div>
+    <div id="force-ap-status" style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-muted);"></div>
+</section>
+
+<section class="card">
     <h2>WiFi Status</h2>
     <div id="wifi-status">
         <p class="loading">Fetching status...</p>
@@ -43,8 +58,45 @@
 
 {% block scripts %}
 <script>
+    async function loadForceAp() {
+        try {
+            const data = await apiGet("/api/wifi/force-ap");
+            document.getElementById("force-ap-toggle").checked = data.force_ap;
+            updateForceApStatus(data.force_ap);
+        } catch (e) {
+            console.error("Failed to load force_ap:", e);
+        }
+    }
+
+    async function setForceAp(enabled) {
+        const status = document.getElementById("force-ap-status");
+        status.textContent = "Saving...";
+        try {
+            const result = await apiPost("/api/wifi/force-ap", { force_ap: enabled });
+            if (result.success) {
+                updateForceApStatus(result.force_ap);
+            } else {
+                status.textContent = "Failed to save.";
+            }
+        } catch (e) {
+            status.textContent = "Error: " + e;
+        }
+    }
+
+    function updateForceApStatus(enabled) {
+        const status = document.getElementById("force-ap-status");
+        if (enabled) {
+            status.textContent = "AP mode is forced ON — the prop will broadcast its hotspot regardless of WiFi.";
+            status.style.color = "var(--warning, #f59e0b)";
+        } else {
+            status.textContent = "AP mode is automatic — the prop uses its hotspot only when no WiFi is available.";
+            status.style.color = "var(--text-muted)";
+        }
+    }
+
     // Load WiFi status on page load
     fetchWifiStatus();
     fetchSavedNetworks();
+    loadForceAp();
 </script>
 {% endblock %}

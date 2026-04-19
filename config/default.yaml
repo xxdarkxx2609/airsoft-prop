@@ -11,6 +11,8 @@ audio:
     siren: assets/sounds/siren.wav
     wrong: assets/sounds/wrong.wav
   volume: 0.5
+access_point:
+  force_ap: false
 display:
   backlight: true
   boot_duration: 2.5

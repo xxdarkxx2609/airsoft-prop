@@ -380,7 +380,11 @@ class App:
             self.captive_portal = create_captive_portal(
                 self.config, mock=self._mock,
             )
-            if not self.captive_portal.is_wifi_connected():
+            force_ap: bool = self.config.get("access_point", "force_ap", default=False)
+            if force_ap:
+                logger.info("force_ap enabled — starting AP mode unconditionally")
+                self.captive_portal.start_ap()
+            elif not self.captive_portal.is_wifi_connected():
                 logger.info("No WiFi connection — starting AP mode")
                 self.captive_portal.start_ap()
             self.captive_portal.start_monitor()

@@ -495,6 +495,35 @@ def create_app(
             return jsonify(portal.get_ap_info())
         return jsonify({"active": False})
 
+    @app.route("/api/wifi/force-ap", methods=["GET"])
+    @require_auth_api
+    def api_force_ap_get():
+        """Get the force_ap setting."""
+        return jsonify({
+            "force_ap": config.get("access_point", "force_ap", default=False)
+        })
+
+    @app.route("/api/wifi/force-ap", methods=["POST"])
+    @require_auth_api
+    def api_force_ap_set():
+        """Enable or disable forced AP mode and apply immediately."""
+        data = request.get_json()
+        if data is None or "force_ap" not in data:
+            return jsonify({"success": False, "message": "Missing force_ap field"}), 400
+
+        force_ap = bool(data["force_ap"])
+        config.save_user_config({"access_point.force_ap": force_ap})
+
+        portal = app.config.get("CAPTIVE_PORTAL")
+        if portal:
+            if force_ap and not portal.is_active():
+                portal.start_ap()
+            elif not force_ap and portal.is_active():
+                portal.stop_ap()
+
+        logger.info("force_ap set to %s via web interface", force_ap)
+        return jsonify({"success": True, "force_ap": force_ap})
+
     # ------------------------------------------------------------------
     # Tournament API
     # ------------------------------------------------------------------
