@@ -258,6 +258,21 @@ def create_app(
         logger.info("Web interface password updated")
         return jsonify({"success": True, "message": "Password updated successfully"})
 
+    @app.route("/api/security/password", methods=["DELETE"])
+    @require_auth_api
+    def api_delete_password():
+        data = request.get_json() or {}
+        current = data.get("current_password", "")
+        stored_hash = _password_hash()
+        if not stored_hash:
+            return jsonify({"success": False, "message": "No password is set"}), 400
+        if not check_password_hash(stored_hash, current):
+            return jsonify({"success": False, "message": "Incorrect password"}), 403
+        config.save_web_config({"password_hash": ""})
+        session.pop("authenticated", None)
+        logger.info("Web interface password removed")
+        return jsonify({"success": True, "message": "Password removed"})
+
     # ------------------------------------------------------------------
     # Pages
     # ------------------------------------------------------------------

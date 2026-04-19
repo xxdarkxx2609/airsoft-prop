@@ -25,6 +25,21 @@
             <button type="submit" class="btn">Set Password</button>
         </div>
     </form>
+    {% if password_set %}
+    <hr>
+    <h3>Remove Password</h3>
+    <p>Enter your current password to remove password protection.</p>
+    <div id="delete-message" class="message hidden"></div>
+    <form onsubmit="deletePassword(event)">
+        <div class="form-group">
+            <label for="delete-current-password">Current Password</label>
+            <input type="password" id="delete-current-password" autocomplete="current-password">
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-danger">Remove Password</button>
+        </div>
+    </form>
+    {% endif %}
 </div>
 {% endblock %}
 {% block scripts %}
@@ -44,6 +59,21 @@ async function changePassword(event) {
         if (document.getElementById("current-password")) {
             document.getElementById("current-password").value = "";
         }
+        setTimeout(() => location.reload(), 1500);
+    }
+}
+
+async function deletePassword(event) {
+    event.preventDefault();
+    const current = document.getElementById("delete-current-password").value;
+    const resp = await fetch("/api/security/password", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ current_password: current }),
+    });
+    const result = await resp.json();
+    showMessage("delete-message", result.message, result.success ? "success" : "error");
+    if (result.success) {
         setTimeout(() => location.reload(), 1500);
     }
 }
