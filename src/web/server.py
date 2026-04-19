@@ -268,7 +268,17 @@ def create_app(
     @require_auth_page
     def wifi_page():
         """WiFi configuration page."""
-        return render_template("wifi.html", active="wifi")
+        portal = app.config.get("CAPTIVE_PORTAL")
+        ap_active = portal is not None and portal.is_active()
+        hotspot_ssid = config.get("hotspot", "ssid", default="AirsoftProp")
+        hotspot_password = config.get("hotspot", "password", default="defuse1337")
+        return render_template(
+            "wifi.html",
+            active="wifi",
+            ap_active=ap_active,
+            hotspot_ssid=hotspot_ssid,
+            hotspot_password=hotspot_password,
+        )
 
     @app.route("/config")
     @require_auth_page

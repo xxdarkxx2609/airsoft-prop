@@ -122,12 +122,6 @@ async function scanNetworks() {
 
     try {
         const result = await apiGet("/api/wifi/scan");
-        if (result.error === "ap_active") {
-            list.innerHTML = "<p>Cannot scan while AP mode is active. Connect to a WiFi network first to disable AP mode.</p>";
-            btn.disabled = false;
-            btn.textContent = "Scan";
-            return;
-        }
         const networks = result.networks ?? result;
         if (networks.length === 0) {
             list.innerHTML = "<p>No networks found.</p>";

@@ -25,10 +25,26 @@
 
 <section class="card">
     <h2>Available Networks</h2>
+    {% if ap_active %}
+    <div class="ap-mode-notice">
+        <p><strong>AP mode is active.</strong> The prop's single radio cannot scan for networks while broadcasting its own hotspot.</p>
+        <p>To connect to a new WiFi network:</p>
+        <ol>
+            <li>Create a hotspot on your phone with the credentials below.</li>
+            <li>Restart the prop — it will auto-connect to your hotspot.</li>
+            <li>Open this page again to configure a permanent WiFi network.</li>
+        </ol>
+        <div class="hotspot-credentials">
+            <div class="hotspot-row"><span class="hotspot-label">SSID</span><code>{{ hotspot_ssid }}</code></div>
+            <div class="hotspot-row"><span class="hotspot-label">Password</span><code>{{ hotspot_password }}</code></div>
+        </div>
+    </div>
+    {% else %}
     <button id="btn-scan" class="btn" onclick="scanNetworks()">Scan</button>
     <div id="network-list">
         <p class="loading">Press Scan to search...</p>
     </div>
+    {% endif %}
 </section>
 
 <section class="card">

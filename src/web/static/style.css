@@ -199,6 +199,49 @@ main {
     gap: 8px;
 }
 
+/* AP mode notice (shown instead of scan when AP is active) */
+.ap-mode-notice {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+.ap-mode-notice ol {
+    padding-left: 1.25rem;
+    margin: 0.5rem 0;
+}
+
+.hotspot-credentials {
+    margin-top: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.hotspot-row {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+}
+
+.hotspot-row:last-child {
+    border-bottom: none;
+}
+
+.hotspot-label {
+    width: 5rem;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.hotspot-row code {
+    font-family: monospace;
+    font-size: 1rem;
+}
+
 /* Network list */
 .network-item {
     display: flex;
