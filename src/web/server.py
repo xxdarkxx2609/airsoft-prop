@@ -121,9 +121,13 @@ def create_app(
         template_folder=str(_TEMPLATE_DIR),
         static_folder=str(_STATIC_DIR),
     )
-    _secret_key_file = Path(__file__).parent.parent.parent / "config" / "custom" / "secret_key"
+    _secret_key_file = config.project_root / "custom" / "secret_key"
+    _old_secret_key_file = config.project_root / "config" / "custom" / "secret_key"
 
     def _load_or_create_secret_key() -> str:
+        if _old_secret_key_file.exists() and not _secret_key_file.exists():
+            _secret_key_file.parent.mkdir(parents=True, exist_ok=True)
+            _old_secret_key_file.rename(_secret_key_file)
         _secret_key_file.parent.mkdir(parents=True, exist_ok=True)
         if _secret_key_file.exists():
             key = _secret_key_file.read_text().strip()
