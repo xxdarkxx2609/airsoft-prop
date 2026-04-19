@@ -254,9 +254,11 @@ class MyDisplay(DisplayBase):
         # Called once at startup — initialise your hardware here
         pass
 
-    def write(self, row: int, col: int, text: str) -> None:
-        # Write text at (row, col) on your display
-        print(f"[{row},{col}] {text}")
+    def write_line(self, row: int, text: str) -> None:
+        print(f"[{row}] {text}")
+
+    def write_at(self, row: int, col: int, text: str) -> None:
+        pass
 
     def clear(self) -> None:
         pass
@@ -264,7 +266,13 @@ class MyDisplay(DisplayBase):
     def set_backlight(self, on: bool) -> None:
         pass
 
-    def close(self) -> None:
+    def create_custom_char(self, slot: int, pattern: list[int]) -> None:
+        pass
+
+    def shutdown(self, clear_display: bool = True) -> None:
+        pass
+
+    def flush(self) -> None:
         pass
 ```
 
@@ -275,6 +283,54 @@ After placing this file in `custom/hal/`, open the web interface at `/hardware`.
 - `custom/hal/` is gitignored — firmware updates will never delete your files.
 - If a custom module fails to load (import error, missing dependency), the app logs a WARNING and falls back to the mock implementation so the device remains usable.
 - You can read values from `config/hardware.yaml` or `custom/hardware.yaml` in your `__init__` by accepting a `Config` object — look at `src/hal/display_lcd.py` for an example.
+
+---
+
+## Adding Hardware for a Completely New Component Type
+
+The HAL system covers the seven components the app knows about (`display`, `audio`, `input`, `wires`, `battery`, `usb_detector`, `led`). If you want to drive hardware that does not fit any of those slots — a smoke machine, a door lock, a second LED strip — the web interface cannot help you, because there is no slot in `App` that would call it.
+
+**The right approach: instantiate your hardware directly inside a custom game mode.**
+
+```python
+# custom/modes/my_mode.py
+from src.modes.base_mode import BaseMode, GameContext, ModeResult
+
+class MyMode(BaseMode):
+    name = "My Mode"
+    description = "Uses a smoke machine"
+    menu_key = "7"
+
+    def __init__(self) -> None:
+        super().__init__()
+        # Import and initialise your device here.
+        # Wrap everything in try/except so a missing dependency
+        # does not prevent the mode from loading on other hardware.
+        try:
+            import RPi.GPIO as GPIO
+            GPIO.setmode(GPIO.BCM)
+            GPIO.setup(23, GPIO.OUT, initial=GPIO.LOW)
+            self._gpio = GPIO
+        except Exception:
+            self._gpio = None
+
+    def _trigger_smoke(self) -> None:
+        if self._gpio is not None:
+            self._gpio.output(23, self._gpio.HIGH)
+
+    # ... implement the rest of BaseMode ...
+```
+
+**Trade-offs vs. a proper HAL module:**
+
+| | Custom HAL module | Direct in game mode |
+|---|---|---|
+| Web UI selection | Yes | No |
+| Mock fallback on error | Yes (app substitutes mock) | You write it yourself |
+| Reusable across modes | Yes | No — duplicated if needed in another mode |
+| Suitable for | Replacing an existing component | New, mode-specific hardware |
+
+If you find yourself reusing the same device in several modes, extract it into a helper class in `custom/hal/` anyway — you just won't get a dropdown for it. Import it directly from the mode file with a relative path or by adding `custom/` to `sys.path`.
 
 ---
 
