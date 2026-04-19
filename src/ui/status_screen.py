@@ -42,9 +42,14 @@ class StatusScreen(BaseScreen):
         backspace — return to the main menu.
     """
 
+    # Cache TTL for slow subprocess calls (seconds).
+    _CACHE_TTL: float = 10.0
+
     def __init__(self, app: App) -> None:
         super().__init__(app)
         self._page: int = 0
+        self._ssid_cache: str = ""
+        self._ssid_cache_ts: float = 0.0
 
     # -- lifecycle ------------------------------------------------------------
 
@@ -85,7 +90,7 @@ class StatusScreen(BaseScreen):
             display.write_line(3, pad_text("-> Connect phone"))
             return
 
-        ssid = self._get_ssid()
+        ssid = self._get_ssid_cached()
         ip_addr = self._get_ip_address()
 
         display.write_line(0, center_text("=== Network ==="))
@@ -163,6 +168,14 @@ class StatusScreen(BaseScreen):
             self.app.screen_manager.switch_to("menu")
 
     # -- platform helpers (best-effort, never raise) --------------------------
+
+    def _get_ssid_cached(self) -> str:
+        """Return cached SSID, refreshing at most once per ``_CACHE_TTL`` seconds."""
+        now = time.monotonic()
+        if now - self._ssid_cache_ts >= self._CACHE_TTL:
+            self._ssid_cache = self._get_ssid()
+            self._ssid_cache_ts = now
+        return self._ssid_cache
 
     @staticmethod
     def _get_ssid() -> str:

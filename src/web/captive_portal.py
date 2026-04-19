@@ -24,7 +24,7 @@ from src.utils.logger import get_logger
 logger = get_logger(__name__)
 
 # How often the monitor thread checks connectivity (seconds).
-_MONITOR_INTERVAL: float = 15.0
+_MONITOR_INTERVAL: float = 60.0
 
 # Grace period after stopping AP before checking connectivity (seconds).
 # Gives NetworkManager time to reconnect after AP teardown.
