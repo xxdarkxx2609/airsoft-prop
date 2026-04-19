@@ -11,7 +11,10 @@ import queue
 import signal
 import sys
 import time
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
+
+if TYPE_CHECKING:
+    from src.web.captive_portal import CaptivePortalBase
 
 from src.hal.base import (
     AudioBase,
@@ -86,7 +89,7 @@ class App:
         self._event_queue: queue.Queue[dict[str, Any]] = queue.Queue()
 
         # Captive portal / AP management (initialized in _init_network)
-        self.captive_portal: object | None = None
+        self.captive_portal: CaptivePortalBase | None = None
 
         # Web server (lazy import — avoids Flask dependency when disabled)
         self._web_server: object | None = None

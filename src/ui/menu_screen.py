@@ -16,6 +16,7 @@ from src.ui.lcd_helpers import (
     CHAR_CURSOR,
     CHAR_SCROLL_DOWN,
     CHAR_SCROLL_UP,
+    CHAR_WIFI_OFF,
     CHAR_WIFI_ON,
     pad_text,
 )
@@ -115,7 +116,9 @@ class MenuScreen(BaseScreen):
                 display.write_line(row, pad_text(label))
 
         # Line 3: fixed status bar with optional battery icon
-        wifi_icon = chr(CHAR_WIFI_ON)
+        portal = self.app.captive_portal
+        wifi_on = portal is not None and (portal.is_active() or portal.is_wifi_connected())
+        wifi_icon = chr(CHAR_WIFI_ON if wifi_on else CHAR_WIFI_OFF)
         battery_level = self.app.battery.get_battery_level()
         if battery_level is not None:
             bat_icon = chr(CHAR_BATTERY_FULL if battery_level > 20 else CHAR_BATTERY_LOW)
