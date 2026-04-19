@@ -116,7 +116,7 @@ chmod +x ./pisugar-power-manager.sh
 sudo ./pisugar-power-manager.sh
 ```
 
-2. Edit `config/hardware.yaml` and set `hal.battery: "pisugar"`.
+2. Enable PiSugar in the hardware config — either via the **web interface** (Hardware settings) or by creating/editing `custom/hardware.yaml` and setting `hal.battery: "pisugar"`.
 
 3. Reboot and verify:
 
@@ -130,7 +130,7 @@ Battery information is shown in three places:
 - **LCD menu footer** — battery icon (full/low) next to the WiFi icon
 - **Web interface** `/battery` page — full detail with charging status and current draw
 
-**Without PiSugar:** set `hal.battery: "none"` in `config/hardware.yaml`. All battery UI elements hide automatically.
+**Without PiSugar:** leave the default (`hal.battery: "none"`), or set it via the web interface or `custom/hardware.yaml`. All battery UI elements hide automatically.
 
 **Extended runtime:** for longer Milsim games (6+ hours), connect a USB-C power bank to the PiSugar. It handles power switching automatically.
 
