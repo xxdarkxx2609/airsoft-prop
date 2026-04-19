@@ -198,6 +198,10 @@ class CaptivePortal(CaptivePortalBase):
                     self._cleanup_failed_start()
                     return False
 
+                # 6. Start port-80 redirect server for captive portal detection.
+                # Phones probe http://... on port 80; Flask runs on 8080.
+                self._start_redirect_server()
+
                 self._ap_active = True
                 logger.info("AP started successfully")
                 return True
@@ -217,6 +221,7 @@ class CaptivePortal(CaptivePortalBase):
             logger.info("Stopping AP...")
 
             # 1. Kill processes
+            self._stop_redirect_server()
             self._kill_process(self._hostapd_proc, "hostapd")
             self._kill_process(self._dnsmasq_proc, "dnsmasq")
             self._hostapd_proc = None
@@ -354,6 +359,30 @@ class CaptivePortal(CaptivePortalBase):
             f.write(conf)
         logger.debug("Wrote %s", _DNSMASQ_CONF)
 
+    def _start_redirect_server(self) -> None:
+        """Add iptables rule to redirect port 80 → 8080 on wlan0.
+
+        OS captive portal probes always target port 80. Flask runs on 8080,
+        so without this redirect the probes get no response and the phone
+        never opens the captive portal browser. iptables NAT avoids needing
+        a privileged Python listener.
+        """
+        self._run_cmd([
+            "sudo", "iptables", "-t", "nat", "-A", "PREROUTING",
+            "-i", "wlan0", "-p", "tcp", "--dport", "80",
+            "-j", "REDIRECT", "--to-port", "8080",
+        ])
+        logger.debug("iptables: port 80 → 8080 redirect added")
+
+    def _stop_redirect_server(self) -> None:
+        """Remove the iptables port-80 redirect rule."""
+        self._run_cmd([
+            "sudo", "iptables", "-t", "nat", "-D", "PREROUTING",
+            "-i", "wlan0", "-p", "tcp", "--dport", "80",
+            "-j", "REDIRECT", "--to-port", "8080",
+        ])
+        logger.debug("iptables: port 80 → 8080 redirect removed")
+
     @staticmethod
     def _run_cmd(cmd: list[str], timeout: int = 10) -> subprocess.CompletedProcess:
         """Run a shell command, log on failure."""
@@ -385,6 +414,7 @@ class CaptivePortal(CaptivePortalBase):
 
     def _cleanup_failed_start(self) -> None:
         """Best-effort cleanup after a failed AP start."""
+        self._stop_redirect_server()
         self._kill_process(self._hostapd_proc, "hostapd")
         self._kill_process(self._dnsmasq_proc, "dnsmasq")
         self._hostapd_proc = None

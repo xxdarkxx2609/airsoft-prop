@@ -423,13 +423,17 @@ def create_app(
     @require_auth_api
     def api_wifi_scan():
         """Scan for available WiFi networks."""
+        portal = app.config.get("CAPTIVE_PORTAL")
+        if portal is not None and portal.is_active():
+            # BCM43430 (Pi Zero WH) cannot scan while in AP mode — single radio.
+            return jsonify({"error": "ap_active", "networks": []})
         networks = wifi.scan()
-        return jsonify([{
+        return jsonify({"networks": [{
             "ssid": n.ssid,
             "signal": n.signal,
             "security": n.security,
             "connected": n.connected,
-        } for n in networks])
+        } for n in networks]})
 
     @app.route("/api/wifi/connect", methods=["POST"])
     @require_auth_api
