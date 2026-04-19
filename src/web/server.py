@@ -914,10 +914,11 @@ def create_app(
         try:
             subprocess.run(["git", "fetch"], capture_output=True, timeout=15)
             result = subprocess.run(
-                ["git", "log", "HEAD..origin/main", "--oneline"],
+                ["git", "log", "HEAD..origin/main", "--format=%B%x00"],
                 capture_output=True, text=True, timeout=10,
             )
-            commits = result.stdout.strip().splitlines() if result.stdout.strip() else []
+            raw = result.stdout.strip() if result.stdout.strip() else ""
+            commits = [c.strip() for c in raw.split("\x00") if c.strip()] if raw else []
             return jsonify({
                 "available": len(commits) > 0,
                 "current_version": config.get("version", default="unknown"),

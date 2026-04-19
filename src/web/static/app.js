@@ -723,7 +723,7 @@ async function checkUpdate() {
                 </div>`;
             if (data.changes) {
                 html += `</div><h3>Changes</h3><ul>${data.changes.map(
-                    (c) => `<li>${c}</li>`
+                    (c) => `<li>${c.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br>")}</li>`
                 ).join("")}</ul>`;
             } else {
                 html += "</div>";
