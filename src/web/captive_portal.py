@@ -115,6 +115,9 @@ class CaptivePortal(CaptivePortalBase):
         self._hostapd_proc: Optional[subprocess.Popen] = None
         self._dnsmasq_proc: Optional[subprocess.Popen] = None
 
+        # Cached WiFi state — updated by monitor thread, safe to read from any thread.
+        self._wifi_connected: bool = False
+
         # Monitor thread
         self._monitor_thread: Optional[threading.Thread] = None
         self._monitor_stop = threading.Event()
@@ -125,19 +128,25 @@ class CaptivePortal(CaptivePortalBase):
     # -- connectivity check --------------------------------------------------
 
     def is_wifi_connected(self) -> bool:
-        """Check if wlan0 is connected to a WiFi network via nmcli."""
+        """Return cached WiFi connection state (non-blocking, safe to call from render)."""
+        return self._wifi_connected
+
+    def _check_wifi_connected(self) -> bool:
+        """Query nmcli for current WiFi state and update the cache."""
         if self._ap_active:
+            self._wifi_connected = False
             return False
         try:
             result = subprocess.run(
                 ["nmcli", "-t", "-f", "GENERAL.STATE", "device", "show", "wlan0"],
                 capture_output=True, text=True, timeout=10,
             )
-            # Connected states contain "(connected)" in the output.
-            return "connected" in result.stdout.lower() and result.returncode == 0
+            connected = "connected" in result.stdout.lower() and result.returncode == 0
         except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as exc:
             logger.warning("WiFi connectivity check failed: %s", exc)
-            return False
+            connected = False
+        self._wifi_connected = connected
+        return connected
 
     # -- AP lifecycle --------------------------------------------------------
 
@@ -268,6 +277,8 @@ class CaptivePortal(CaptivePortalBase):
         )
         self._monitor_thread.start()
         logger.info("Captive portal monitor started (interval=%ss)", _MONITOR_INTERVAL)
+        # Prime the cache so is_wifi_connected() is accurate before the first interval.
+        self._check_wifi_connected()
 
     def stop_monitor(self) -> None:
         """Signal the monitor thread to stop.
@@ -307,7 +318,7 @@ class CaptivePortal(CaptivePortalBase):
                 break
 
             try:
-                if self._ap_active or self.is_wifi_connected():
+                if self._ap_active or self._check_wifi_connected():
                     continue
 
                 logger.warning(
@@ -320,7 +331,7 @@ class CaptivePortal(CaptivePortalBase):
                     break
 
                 # Confirm the loss is still present before starting AP.
-                if not self._ap_active and not self.is_wifi_connected():
+                if not self._ap_active and not self._check_wifi_connected():
                     logger.warning("WiFi still gone after grace period — starting AP")
                     self.start_ap()
             except Exception:
