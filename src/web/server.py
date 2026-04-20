@@ -1124,27 +1124,17 @@ def create_app(
                 "message": "Mock: Update available",
             })
 
-        import subprocess
+        from src.utils.updater import _short_version, check_for_updates
         try:
-            subprocess.run(["git", "fetch", "--tags"], capture_output=True, timeout=15)
-            result = subprocess.run(
-                ["git", "log", "HEAD..origin/main", "--format=%B%x00"],
-                capture_output=True, text=True, timeout=10,
-            )
-            raw = result.stdout.strip() if result.stdout.strip() else ""
-            commits = [c.strip() for c in raw.split("\x00") if c.strip()] if raw else []
-            tag_result = subprocess.run(
-                ["git", "describe", "--tags", "--abbrev=0", "origin/main"],
-                capture_output=True, text=True, timeout=5,
-            )
-            latest_version = tag_result.stdout.strip() if tag_result.returncode == 0 and tag_result.stdout.strip() else None
+            info = check_for_updates(str(config.project_root))
+            if info.error:
+                return jsonify({"available": False, "message": info.error}), 500
             return jsonify({
-                "available": len(commits) > 0,
-                "current_version": config.get("version", default="unknown"),
-                "latest_version": latest_version,
-                "commits_behind": len(commits),
-                "changes": commits[:10],
-                "message": f"{len(commits)} new commits available" if commits else "Up to date",
+                "available": info.update_available,
+                "current_version": _short_version(info.current_version),
+                "latest_version": _short_version(info.remote_version) if info.remote_version else None,
+                "commits_behind": info.commits_behind,
+                "message": f"{info.commits_behind} new commits available" if info.update_available else "Up to date",
             })
         except Exception as e:
             return jsonify({"available": False, "message": str(e)}), 500
@@ -1159,25 +1149,10 @@ def create_app(
                 "message": "Mock: Update installed successfully. Restart required.",
             })
 
-        import subprocess
+        from src.utils.updater import apply_update
         try:
-            result = subprocess.run(
-                ["git", "pull", "origin", "main"],
-                capture_output=True, text=True, timeout=30,
-            )
-            if result.returncode != 0:
-                return jsonify({"success": False, "message": result.stderr}), 500
-
-            # Reinstall dependencies
-            subprocess.run(
-                ["pip", "install", "-r", "requirements.txt"],
-                capture_output=True, timeout=120,
-            )
-
-            return jsonify({
-                "success": True,
-                "message": "Update installed. Restart the application to apply.",
-            })
+            success, message = apply_update(str(config.project_root))
+            return jsonify({"success": success, "message": message}), 200 if success else 500
         except Exception as e:
             return jsonify({"success": False, "message": str(e)}), 500
 

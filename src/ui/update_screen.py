@@ -16,18 +16,13 @@ from src.hal.base import DisplayBase
 from src.ui.base_screen import BaseScreen
 from src.ui.lcd_helpers import center_text, pad_text, progress_bar
 from src.utils.logger import get_logger
-from src.utils.updater import UpdateInfo, apply_update, check_for_updates
+from src.utils.updater import UpdateInfo, _short_version, apply_update, check_for_updates
 
 if TYPE_CHECKING:
     from src.app import App
 
 logger = get_logger(__name__)
 
-
-def _short_version(version: str) -> str:
-    """Strip the git hash from a version string (e.g. 1.0.0-37-g66cf51b -> 1.0.0-37)."""
-    parts = version.rsplit("-g", 1)
-    return parts[0] if len(parts) == 2 and parts[1].isalnum() else version
 
 
 class _State(Enum):

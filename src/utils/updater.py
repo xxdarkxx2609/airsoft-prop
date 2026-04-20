@@ -23,6 +23,12 @@ class UpdateInfo:
     error: Optional[str] = None
 
 
+def _short_version(version: str) -> str:
+    """Strip the git hash suffix (e.g. 1.0.0-37-g66cf51b -> 1.0.0-37)."""
+    parts = version.rsplit("-g", 1)
+    return parts[0] if len(parts) == 2 and parts[1].isalnum() else version
+
+
 def _run_git(args: list[str], cwd: str | None = None) -> tuple[int, str]:
     """Run a git command and return (returncode, stdout).
 
