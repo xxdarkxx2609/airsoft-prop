@@ -507,11 +507,11 @@ FSTYPE=\$(blkid -o value -s TYPE "\$DEVICE" 2>/dev/null || echo "")
 
 case "\$FSTYPE" in
     vfat|fat|fat32|fat16|msdos|exfat)
-        mount "\$DEVICE" "\$MOUNTPOINT" -o sync,noexec,nodev,noatime,nodiratime,uid=${PI_UID},gid=${PI_GID},umask=0022
+        mount "\$DEVICE" "\$MOUNTPOINT" -o noexec,nodev,noatime,nodiratime,uid=${PI_UID},gid=${PI_GID},umask=0022
         ;;
     *)
         # ext4, ntfs, or unknown — mount normally then ensure pi user can write
-        mount "\$DEVICE" "\$MOUNTPOINT" -o sync,noexec,nodev,noatime,nodiratime
+        mount "\$DEVICE" "\$MOUNTPOINT" -o noexec,nodev,noatime,nodiratime
         chown ${PI_UID}:${PI_GID} "\$MOUNTPOINT"
         ;;
 esac

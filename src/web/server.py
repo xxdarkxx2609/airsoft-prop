@@ -1455,7 +1455,10 @@ def create_app(
         if not mock:
             try:
                 key_file = Path(mount_point) / filename
-                key_file.write_text(token + "\n", encoding="utf-8")
+                with open(key_file, "w", encoding="utf-8") as kf:
+                    kf.write(token + "\n")
+                    kf.flush()
+                    os.fsync(kf.fileno())
             except PermissionError:
                 return jsonify({
                     "success": False,
