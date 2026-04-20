@@ -1442,7 +1442,5 @@ textarea:focus {
         font-size: 0.78rem;
     }
 
-    .chip {
-        display: none;
-    }
+
 }
