@@ -55,7 +55,7 @@ function _renderKeyList(containerId, keyType, keys) {
     el.innerHTML = keys.map(k => {
         const label = String(k.label || k.id || "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
         const keyId = String(k.id || "");
-        const ts = k.created_at ? new Date(k.created_at * 1000).toLocaleDateString() : "—";
+        const ts = k.created_at ? new Date(k.created_at).toLocaleDateString() : "—";
         return `<div class="key-item">
             <div class="key-info">
                 <span class="key-label">${label}</span>
@@ -116,7 +116,7 @@ async function refreshUsbSticks() {
 
 function _statusBadge(kind, status, label, permissive) {
     if (!status || status === "none") {
-        return permissive ? "" : `<span class="chip chip-danger">${kind}: UNKNOWN</span>`;
+        return "";
     }
     if (status === "registered") {
         const safeLabel = String(label || kind).replace(/&/g, "&amp;").replace(/</g, "&lt;");
