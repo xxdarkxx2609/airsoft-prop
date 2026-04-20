@@ -37,6 +37,7 @@ class ResultScreen(BaseScreen):
 
     def on_enter(self) -> None:
         """Play the appropriate result sound."""
+        self.app.input.flush()
         self._enter_time = time.time()
         self._siren_played = False
         result = self.app.game_result

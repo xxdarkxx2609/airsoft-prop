@@ -60,6 +60,7 @@ class TournamentScreen(BaseScreen):
 
     def on_enter(self) -> None:
         """Look up the configured tournament mode."""
+        self.app.input.flush()
         self._pin_mode = False
         self._pin_input = ""
         self._backspace_times = []

@@ -58,6 +58,7 @@ class SetupScreen(BaseScreen):
 
     def on_enter(self) -> None:
         """Load setup options from the currently selected mode."""
+        self.app.input.flush()
         mode = self.app.selected_mode
         if mode is None:
             logger.error("SetupScreen entered with no selected mode")

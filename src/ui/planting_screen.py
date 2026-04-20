@@ -54,6 +54,7 @@ class PlantingScreen(BaseScreen):
 
     def on_enter(self) -> None:
         """Prepare the planting screen based on the active mode's config."""
+        self.app.input.flush()
         mode = self.app.selected_mode
         context = self.app.game_context
         if mode is None or context is None:

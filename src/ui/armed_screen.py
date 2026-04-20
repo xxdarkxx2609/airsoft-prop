@@ -52,6 +52,7 @@ class ArmedScreen(BaseScreen):
 
     def on_enter(self) -> None:
         """Start the armed phase: play the planted sound and init timers."""
+        self.app.input.flush()
         now = time.monotonic()
         self.last_tick_time = now
         self.last_beep_time = now
