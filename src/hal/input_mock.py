@@ -85,6 +85,17 @@ class MockInput(InputBase):
         except queue.Empty:
             return None
 
+    def flush(self) -> None:
+        """Discard all buffered key events."""
+        for q in (self._external_key_queue, self._key_queue):
+            if q is None:
+                continue
+            while not q.empty():
+                try:
+                    q.get_nowait()
+                except queue.Empty:
+                    break
+
     def shutdown(self) -> None:
         """Stop the background reader thread."""
         self._running = False

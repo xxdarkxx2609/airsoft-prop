@@ -167,6 +167,14 @@ class InputBase(ABC):
     def shutdown(self) -> None:
         """Clean up input resources."""
 
+    def flush(self) -> None:
+        """Discard all buffered key events.
+
+        Call this when entering a new screen context to prevent carry-over
+        key presses (e.g. held Enter) from being consumed by the new screen.
+        Default implementation is a no-op for implementations without a buffer.
+        """
+
 
 class WiresBase(ABC):
     """Abstract base for wire (GPIO) detection."""

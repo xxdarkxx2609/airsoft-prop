@@ -68,6 +68,7 @@ class MenuScreen(BaseScreen):
         self._cursor_index = 0
         self._scroll_offset = 0
         self._confirm_exit = False
+        self.app.input.flush()
         logger.info("Menu screen entered with %d modes", len(self.app.modes))
 
     # -- rendering ------------------------------------------------------------

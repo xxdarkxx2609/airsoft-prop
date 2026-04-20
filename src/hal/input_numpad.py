@@ -113,6 +113,14 @@ class NumpadInput(InputBase):
         except queue.Empty:
             return None
 
+    def flush(self) -> None:
+        """Discard all buffered key events."""
+        while not self._key_queue.empty():
+            try:
+                self._key_queue.get_nowait()
+            except queue.Empty:
+                break
+
     def shutdown(self) -> None:
         """Stop the reader thread and release the device."""
         self._running = False
