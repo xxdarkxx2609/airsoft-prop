@@ -116,7 +116,7 @@ function renderRecentEvents(events) {
     };
 
     const rows = [...events].reverse().map(ev => {
-        const ts = new Date(ev.ts * 1000).toLocaleTimeString();
+        const ts = new Date(ev.ts).toLocaleTimeString();
         const color = TYPE_COLORS[ev.type] || "";
         const type = String(ev.type).replace(/&/g, "&amp;").replace(/</g, "&lt;");
         const msg = String(ev.message || "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
