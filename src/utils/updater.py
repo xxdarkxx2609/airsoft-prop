@@ -20,7 +20,12 @@ class UpdateInfo:
     remote_version: Optional[str]
     update_available: bool
     commits_behind: int
+    changes: list[str] = None  # type: ignore[assignment]
     error: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        if self.changes is None:
+            self.changes = []
 
 
 def _short_version(version: str) -> str:
@@ -140,11 +145,22 @@ def check_for_updates(project_root: str) -> UpdateInfo:
 
     commits_behind = int(count_str) if code == 0 and count_str.isdigit() else 0
 
+    # Collect commit subjects for changelog display
+    code, log_out = _run_git(
+        ["log", "HEAD..origin/main", "--format=%s"], cwd=project_root
+    )
+    if code != 0:
+        code, log_out = _run_git(
+            ["log", "HEAD..origin/master", "--format=%s"], cwd=project_root
+        )
+    changes = [line for line in log_out.splitlines() if line.strip()][:10]
+
     return UpdateInfo(
         current_version=current_version,
         remote_version=remote_version,
         update_available=current_version != remote_version and commits_behind > 0,
         commits_behind=commits_behind,
+        changes=changes,
     )
 
 

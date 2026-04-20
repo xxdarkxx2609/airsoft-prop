@@ -1134,6 +1134,7 @@ def create_app(
                 "current_version": _short_version(info.current_version),
                 "latest_version": _short_version(info.remote_version) if info.remote_version else None,
                 "commits_behind": info.commits_behind,
+                "changes": info.changes,
                 "message": f"{info.commits_behind} new commits available" if info.update_available else "Up to date",
             })
         except Exception as e:
