@@ -7,9 +7,11 @@ screens, and renders the display.
 
 from __future__ import annotations
 
+import collections
 import queue
 import signal
 import sys
+import threading
 import time
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -87,6 +89,12 @@ class App:
 
         # Cross-thread event queue (WebUI → main loop)
         self._event_queue: queue.Queue[dict[str, Any]] = queue.Queue()
+
+        # Dashboard data: game state snapshot + recent events ring buffer
+        self._state_lock: threading.Lock = threading.Lock()
+        self._game_snapshot: dict[str, Any] = {}
+        self._recent_events: collections.deque = collections.deque(maxlen=20)
+        self._last_snapshot_state: str = ""
 
         # Captive portal / AP management (initialized in _init_network)
         self.captive_portal: CaptivePortalBase | None = None
@@ -473,6 +481,80 @@ class App:
             else:
                 logger.warning("Unknown event type: %s", event_type)
 
+    def _update_game_snapshot(self) -> None:
+        """Update the dashboard game-state snapshot from current app state.
+
+        Called once per frame. Cheap: only dict builds and a lock acquire.
+        """
+        active = self.screen_manager.active_name or "boot"
+        armed_info = None
+
+        if active in ("armed", "planting") and self.game_context is not None:
+            mode_name = self.selected_mode.name if self.selected_mode else ""
+            armed_info = {
+                "mode": mode_name,
+                "remaining_seconds": self.game_context.remaining_seconds,
+                "total_seconds": self.game_context.timer_seconds,
+                "snapshot_ts": time.time(),
+            }
+
+        snapshot = {
+            "state": active,
+            "device_name": self.config.get("game", "device_name", default="Prop"),
+            "armed": armed_info,
+            "tournament": {
+                "enabled": self.config.is_tournament_enabled(),
+                "mode": self.config.get_tournament_mode(),
+            },
+        }
+
+        # Detect state transitions for recent-events ring
+        prev = self._last_snapshot_state
+        self._last_snapshot_state = active
+        if prev != active:
+            if active == "armed":
+                mode_name = self.selected_mode.name if self.selected_mode else "Unknown"
+                self._append_recent_event("armed", f"Round armed · {mode_name}")
+            elif active == "result":
+                result = self.game_result
+                if result is not None:
+                    from src.modes.base_mode import ModeResult
+                    if result == ModeResult.DEFUSED and self.game_context:
+                        remaining = self.game_context.remaining_seconds
+                        mins, secs = divmod(remaining, 60)
+                        self._append_recent_event(
+                            "defused", f"Defused with {mins}:{secs:02d} remaining"
+                        )
+                    elif result == ModeResult.DETONATED:
+                        self._append_recent_event("detonated", "Timer expired")
+            elif active == "tournament" and prev not in ("tournament", "tournament_transition", "boot"):
+                self._append_recent_event("tournament_on", "Tournament mode activated")
+            elif prev == "tournament" and active == "tournament_transition":
+                self._append_recent_event("tournament_off", "Tournament mode deactivated")
+
+        with self._state_lock:
+            self._game_snapshot = snapshot
+
+    def _append_recent_event(self, event_type: str, message: str) -> None:
+        """Append an event to the recent-events ring buffer."""
+        import datetime
+        ts = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+        with self._state_lock:
+            self._recent_events.appendleft({"ts": ts, "type": event_type, "message": message})
+
+    def get_game_state_snapshot(self) -> dict[str, Any]:
+        """Return a copy of the current game-state snapshot for the dashboard.
+
+        Thread-safe: called from Flask routes.
+
+        Returns:
+            Dict with state, device_name, armed, tournament, recent_events.
+        """
+        with self._state_lock:
+            snapshot = dict(self._game_snapshot)
+            snapshot["recent_events"] = list(self._recent_events)
+        return snapshot
+
     def is_game_in_progress(self) -> bool:
         """Check if a game is currently running (armed or planting).
 
@@ -528,6 +610,9 @@ class App:
                     key = self.input.get_key()
                     if key is not None:
                         self.screen_manager.handle_input(key)
+
+                    # Update dashboard snapshot
+                    self._update_game_snapshot()
 
                     # Render
                     self.screen_manager.render(self.display)

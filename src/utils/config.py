@@ -403,6 +403,33 @@ class Config:
                 diff[key] = value
         return diff
 
+    def load_branding(self) -> dict[str, Any]:
+        """Load branding config from custom/branding.yaml.
+
+        Returns:
+            Dict with ``team_name`` (str) and ``logo_file`` (str|None).
+        """
+        data = _load_custom_yaml("branding.yaml")
+        return {
+            "team_name": data.get("team_name", "") if data else "",
+            "logo_file": data.get("logo_file", None) if data else None,
+        }
+
+    def save_branding(self, branding: dict[str, Any]) -> None:
+        """Write branding config to custom/branding.yaml.
+
+        Intentionally separate from user.yaml so that reset_user_config()
+        never clears the branding.
+
+        Args:
+            branding: Dict with ``team_name`` and ``logo_file`` keys.
+        """
+        _ensure_custom_dir()
+        config_path = _CUSTOM_DIR / "branding.yaml"
+        with open(config_path, "w", encoding="utf-8") as f:
+            yaml.dump(branding, f, default_flow_style=False, allow_unicode=True)
+        logger.info("Branding config saved to %s", config_path)
+
     @staticmethod
     def _flatten_keys(d: dict, prefix: str = "") -> set[str]:
         """Flatten a nested dict into dot-separated key paths."""

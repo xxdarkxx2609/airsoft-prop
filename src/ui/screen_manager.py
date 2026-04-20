@@ -89,6 +89,10 @@ class ScreenManager:
         if self._active is not None:
             self._active.handle_input(key)
 
+    def get_screen(self, name: str) -> Optional[BaseScreen]:
+        """Return a registered screen by name, or None if not found."""
+        return self._screens.get(name)
+
     @property
     def active_name(self) -> str:
         """Name of the currently active screen.

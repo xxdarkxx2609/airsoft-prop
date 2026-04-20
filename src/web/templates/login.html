@@ -1,31 +1,58 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login — Airsoft Prop</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='10' fill='none' stroke='%238bc34a' stroke-width='2'/%3E%3Ccircle cx='12' cy='12' r='3' fill='%238bc34a'/%3E%3Cline x1='12' y1='2' x2='12' y2='6' stroke='%238bc34a' stroke-width='2'/%3E%3Cline x1='12' y1='18' x2='12' y2='22' stroke='%238bc34a' stroke-width='2'/%3E%3Cline x1='2' y1='12' x2='6' y2='12' stroke='%238bc34a' stroke-width='2'/%3E%3Cline x1='18' y1='12' x2='22' y2='12' stroke='%238bc34a' stroke-width='2'/%3E%3C/svg%3E">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body class="login-body">
-    <div class="login-container">
-        <div class="card login-card">
-            <h1>&#x1f3af; Airsoft Prop</h1>
-            <h2>Admin Login</h2>
-            {% if error %}
-            <p class="message error">{{ error }}</p>
+
+<div class="scanline-overlay" aria-hidden="true"></div>
+
+<div class="login-wrap">
+    <div class="login-card panel">
+
+        <!-- Branding -->
+        <div class="login-brand">
+            {% if branding and branding.logo_url %}
+            <img src="{{ branding.logo_url }}" alt="Team logo" class="login-logo">
+            {% else %}
+            <svg class="login-crosshair" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                <circle cx="24" cy="24" r="20"/>
+                <circle cx="24" cy="24" r="7"/>
+                <line x1="24" y1="4" x2="24" y2="15"/>
+                <line x1="24" y1="33" x2="24" y2="44"/>
+                <line x1="4" y1="24" x2="15" y2="24"/>
+                <line x1="33" y1="24" x2="44" y2="24"/>
+            </svg>
             {% endif %}
-            <form method="post" action="/login">
-                <input type="hidden" name="next" value="{{ next }}">
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" name="password"
-                           autofocus autocomplete="current-password" required>
-                </div>
-                <div class="form-actions">
-                    <button type="submit" class="btn login-btn">Log In</button>
-                </div>
-            </form>
+            <span class="login-team-name">{{ branding.team_name if branding else 'AIRSOFT PROP' }}</span>
         </div>
+
+        <h1 class="login-title">Admin Login</h1>
+
+        {% if error %}
+        <div id="login-error" class="message message-error" role="alert">{{ error }}</div>
+        {% else %}
+        <div id="login-error" class="message message-error" style="display:none"></div>
+        {% endif %}
+
+        <form method="post" action="/login" autocomplete="off">
+            <input type="hidden" name="next" value="{{ next }}">
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password"
+                       autofocus autocomplete="current-password" required>
+            </div>
+            <div class="panel-actions">
+                <button type="submit" class="btn login-submit-btn">Log In</button>
+            </div>
+        </form>
+
     </div>
+</div>
+
 </body>
 </html>

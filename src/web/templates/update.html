@@ -1,16 +1,49 @@
 {% extends "base.html" %}
+{% set page_title = "Update" %}
+{% set active = "update" %}
 
-{% block content %}
-<section class="card">
-    <h2>Software Update</h2>
-    <div id="update-status">
-        <p>Press "Check for Updates" to see if a new version is available.</p>
+{% block main %}
+
+<!-- Version info -->
+<div class="panel">
+    <h2 class="panel-title">Software Version</h2>
+    <div class="info-row">
+        <span class="info-label">Current Version</span>
+        <span class="info-value" id="current-version">—</span>
     </div>
-    <div class="form-actions">
-        <button id="btn-check" class="btn" onclick="checkUpdate()">Check for Updates</button>
-        <button id="btn-install" class="btn btn-danger hidden" onclick="installUpdate()">Install Update</button>
-        <button id="btn-restart" class="btn btn-danger hidden" onclick="restartService()">Restart Service</button>
+    <div class="info-row">
+        <span class="info-label">Latest Version</span>
+        <span class="info-value" id="latest-version">—</span>
     </div>
-    <div id="update-message" class="message hidden"></div>
-</section>
+    <div class="info-row">
+        <span class="info-label">Commits Behind</span>
+        <span class="info-value" id="commits-behind">—</span>
+    </div>
+    <div class="info-row">
+        <span class="info-label">Last Checked</span>
+        <span class="info-value" id="last-checked">Never</span>
+    </div>
+</div>
+
+<!-- Changelog -->
+<div class="panel">
+    <h2 class="panel-title">Changes</h2>
+    <ul id="changes-list" class="changes-list" aria-live="polite">
+        <li class="changes-placeholder">Press "Check for Updates" to see what's new.</li>
+    </ul>
+</div>
+
+<!-- Actions -->
+<div class="panel">
+    <div class="panel-actions">
+        <button id="check-update-btn" class="btn">Check for Updates</button>
+        <button id="install-update-btn" class="btn btn-danger" disabled>Install Update</button>
+        <button id="restart-service-btn" class="btn btn-secondary">Restart Service</button>
+    </div>
+    <div id="update-msg" class="message" style="display:none"></div>
+    <div id="restart-status" class="message" style="display:none"></div>
+</div>
+
 {% endblock %}
+
+{% block page_js %}<script src="{{ url_for('static', filename='pages/update.js') }}"></script>{% endblock %}

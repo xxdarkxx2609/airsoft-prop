@@ -1,103 +1,146 @@
 {% extends "base.html" %}
+{% set page_title = "Config" %}
+{% set active = "config" %}
 
-{% block content %}
-<section class="card">
-    <h2>Game Settings</h2>
-    <form id="config-form" onsubmit="saveConfig(event)">
-        <div class="form-group">
-            <label for="device-name">Device Name | Shown on LCD (max 7 characters)</label>
-            <input type="text" id="device-name" data-key="game.device_name"
-                   maxlength="7" placeholder="Prop">
-        </div>
+{% block main %}
 
-        <div class="form-group">
-            <label for="default-timer">Default Timer (seconds)</label>
-            <input type="number" id="default-timer" data-key="game.default_timer"
-                   min="30" max="5999" step="30">
-        </div>
+<!-- Device Identity -->
+<div class="panel">
+    <h2 class="panel-title">Device Identity</h2>
+    <div class="form-group">
+        <label for="device-name-input">Device Name <span class="label-hint">(max 7 characters — shown on LCD)</span></label>
+        <input type="text" id="device-name-input" data-key="game.device_name" maxlength="7" placeholder="Prop">
+    </div>
+</div>
 
-        <div class="form-group">
-            <label for="timer-step">Timer Step (seconds)</label>
-            <input type="number" id="timer-step" data-key="game.timer_step"
-                   min="10" max="300" step="10">
+<!-- Team Branding -->
+<div class="panel">
+    <h2 class="panel-title">Team Branding</h2>
+    <div class="form-group">
+        <label for="team-name-input">Team Name <span class="label-hint">(shown in sidebar)</span></label>
+        <input type="text" id="team-name-input" maxlength="32" placeholder="AIRSOFT PROP">
+    </div>
+    <div class="form-group">
+        <label>Team Logo</label>
+        <div class="logo-preview-wrap">
+            <img id="logo-preview" src="" alt="Team logo preview" style="display:none" class="logo-preview">
         </div>
+        <div class="file-input-row">
+            <input type="file" id="logo-upload" accept="image/png,image/jpeg,image/svg+xml,image/webp">
+            <button id="delete-logo-btn" class="btn btn-danger btn-small">Remove Logo</button>
+        </div>
+    </div>
+    <div class="panel-actions">
+        <button id="save-branding-btn" class="btn">Save Branding</button>
+    </div>
+    <div id="branding-msg" class="message" style="display:none"></div>
+</div>
 
-        <h3>Random Code</h3>
-        <div class="form-group">
-            <label for="default-digits">Default Digits | due to UI Limitations this is capped at 20 Digits</label>
-            <input type="number" id="default-digits" data-key="modes.random_code.default_digits"
-                   min="4" max="20" step="1">
-        </div>
+<!-- Game Defaults -->
+<div class="panel">
+    <h2 class="panel-title">Game Defaults</h2>
 
-        <h3>Set Code</h3>
-        <div class="form-group">
-            <label for="max-code-length">Max Code Length | due to UI Limitations this is capped at 10 Digits</label>
-            <input type="number" id="max-code-length" data-key="modes.set_code.max_code_length"
-                   min="1" max="10" step="1">
+    <div class="form-group">
+        <label>Default Timer <span class="label-hint">(seconds)</span></label>
+        <div class="stepper" data-stepper>
+            <button class="stepper-btn" type="button" data-step="dec">−</button>
+            <input type="number" data-key="game.default_timer" min="30" max="5999" step="30" data-large-step="60">
+            <button class="stepper-btn" type="button" data-step="inc">+</button>
         </div>
+    </div>
 
-        <h3>USB Key Cracker</h3>
-        <div class="form-group">
-            <label for="crack-interval">Crack Interval (seconds per digit)</label>
-            <input type="number" id="crack-interval"
-                   data-key="modes.usb_key_cracker.crack_interval"
-                   min="0.5" max="30" step="0.5">
+    <div class="form-group">
+        <label>Timer Step <span class="label-hint">(seconds per keypress)</span></label>
+        <div class="stepper" data-stepper>
+            <button class="stepper-btn" type="button" data-step="dec">−</button>
+            <input type="number" data-key="game.timer_step" min="10" max="300" step="10" data-large-step="30">
+            <button class="stepper-btn" type="button" data-step="inc">+</button>
         </div>
+    </div>
 
-        <h3>Plus Modes</h3>
-        <div class="form-group">
-            <label for="penalty-seconds">Penalty Seconds | Time deducted per wrong digit in Plus modes</label>
-            <input type="number" id="penalty-seconds" data-key="game.penalty_seconds"
-                   min="1" max="60" step="1">
+    <div class="form-group">
+        <label>Penalty Seconds <span class="label-hint">(deducted per wrong digit in Plus modes)</span></label>
+        <div class="stepper" data-stepper>
+            <button class="stepper-btn" type="button" data-step="dec">−</button>
+            <input type="number" data-key="game.penalty_seconds" min="1" max="60" step="1" data-large-step="5">
+            <button class="stepper-btn" type="button" data-step="inc">+</button>
         </div>
+    </div>
 
-        <h3>Audio</h3>
-        <div class="form-group">
-            <label for="volume">Volume</label>
-            <input type="range" id="volume" data-key="audio.volume"
-                   min="0" max="1" step="0.1">
-            <span id="volume-value">0.8</span>
-        </div>
+    <h3 class="panel-subtitle">Random Code</h3>
+    <div class="form-group">
+        <label for="random-code-digits">Default Digits <span class="label-hint">(capped at 20 due to UI layout)</span></label>
+        <input type="number" id="random-code-digits" data-key="modes.random_code.default_digits" min="4" max="20" step="1">
+    </div>
 
-        <h3>Display</h3>
-        <div class="form-group">
-            <label for="backlight">
-                <input type="checkbox" id="backlight" data-key="display.backlight">
-                LCD Backlight
-            </label>
-        </div>
+    <h3 class="panel-subtitle">Set Code</h3>
+    <div class="form-group">
+        <label for="set-code-length">Max Code Length <span class="label-hint">(capped at 10)</span></label>
+        <input type="number" id="set-code-length" data-key="modes.set_code.max_code_length" min="1" max="10" step="1">
+    </div>
 
-        <h3>Logging</h3>
-        <div class="form-group">
-            <label for="log-level">Log Level</label>
-            <select id="log-level" data-key="logging.level">
-                <option value="DEBUG">DEBUG</option>
-                <option value="INFO">INFO</option>
-                <option value="WARNING">WARNING</option>
-                <option value="ERROR">ERROR</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <label for="max-files">Max Archived Log Files</label>
-            <input type="number" id="max-files" data-key="logging.max_files"
-                   min="1" max="50" step="1">
-        </div>
+    <h3 class="panel-subtitle">USB Key Cracker</h3>
+    <div class="form-group">
+        <label for="crack-interval">Crack Interval <span class="label-hint">(seconds per digit)</span></label>
+        <input type="number" id="crack-interval" data-key="modes.usb_key_cracker.crack_interval" min="0.5" max="30" step="0.5">
+    </div>
+</div>
 
-        <div class="form-actions">
-            <button type="submit" class="btn">Save Settings</button>
-            <button type="button" class="btn btn-secondary" onclick="resetConfig()">Reset to Defaults</button>
+<!-- Audio & Display -->
+<div class="panel">
+    <h2 class="panel-title">Audio &amp; Display</h2>
+
+    <div class="form-group">
+        <label for="volume-slider">Volume — <span id="volume-label">—</span></label>
+        <input type="range" id="volume-slider" data-key="audio.volume" min="0" max="1" step="0.05">
+    </div>
+
+    <div class="form-group">
+        <label class="toggle-label">
+            <input type="checkbox" id="backlight-toggle" data-key="display.backlight" role="switch">
+            <span>LCD Backlight</span>
+        </label>
+    </div>
+
+    <h3 class="panel-subtitle">Logging</h3>
+    <div class="form-group">
+        <label for="log-level-select">Log Level</label>
+        <select id="log-level-select" data-key="logging.level">
+            <option value="DEBUG">DEBUG</option>
+            <option value="INFO">INFO</option>
+            <option value="WARNING">WARNING</option>
+            <option value="ERROR">ERROR</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="max-files-input">Max Archived Log Files</label>
+        <input type="number" id="max-files-input" data-key="logging.max_files" min="1" max="50" step="1">
+    </div>
+</div>
+
+<!-- Custom Sounds -->
+<div class="panel">
+    <h2 class="panel-title">Custom Sounds</h2>
+    <div id="sounds-list" class="sounds-list" aria-live="polite"></div>
+    <div class="file-input-row" style="margin-top: 0.75rem;">
+        <input type="file" id="sound-upload" accept="audio/mpeg,audio/ogg,audio/wav,audio/x-wav">
+        <button id="sound-upload-btn" class="btn btn-secondary btn-small">Upload Sound</button>
+    </div>
+    <div id="sounds-msg" class="message" style="display:none"></div>
+</div>
+
+<!-- Actions -->
+<div class="panel">
+    <div class="panel-actions panel-actions-spread">
+        <div>
+            <button id="save-config-btn" class="btn">Save Config</button>
+            <button id="discard-config-btn" class="btn btn-secondary">Discard</button>
         </div>
-        <div id="config-message" class="message hidden"></div>
-    </form>
-</section>
+        <button id="reset-config-btn" class="btn btn-danger">Reset to Defaults</button>
+    </div>
+    <div id="config-msg" class="message" style="display:none"></div>
+</div>
+
 {% endblock %}
 
-{% block scripts %}
-<script>
-    loadConfig();
-
-    document.getElementById('volume').addEventListener('input', function() {
-        document.getElementById('volume-value').textContent = this.value;
-    });
-</script>
-{% endblock %}
+{% block page_js %}<script src="{{ url_for('static', filename='pages/config.js') }}"></script>{% endblock %}

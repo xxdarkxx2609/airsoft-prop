@@ -1,54 +1,69 @@
 {% extends "base.html" %}
+{% set page_title = "Tournament" %}
+{% set active = "tournament" %}
 
-{% block content %}
-<section class="card">
-    <h2>Tournament Mode</h2>
-    <form id="tournament-form" onsubmit="saveTournament(event)">
-        <div class="form-group">
-            <label for="tournament-enabled">
-                <input type="checkbox" id="tournament-enabled">
-                Enable Tournament Mode
-            </label>
-            <small>When enabled, players can only start the configured game mode. All other screens are locked.</small>
+{% block main %}
+
+<div id="game-in-progress-warning" class="warning-banner" style="display:none" role="alert">
+    A game is currently in progress. Tournament settings cannot be saved until the game ends.
+</div>
+
+<!-- Enable toggle -->
+<div class="panel">
+    <h2 class="panel-title">Tournament Mode</h2>
+    <p class="panel-desc">
+        When enabled, the device locks players into a single configured game mode.
+        All other screens are inaccessible from the device. Organisers can exit via
+        web interface, a USB stick with <code>TOURNAMENT.KEY</code>, or a PIN sequence.
+    </p>
+    <div class="form-group">
+        <label class="toggle-label">
+            <input type="checkbox" id="tournament-enabled" role="switch">
+            <span>Enable Tournament Mode</span>
+        </label>
+    </div>
+</div>
+
+<!-- Mode & settings -->
+<div class="panel">
+    <h2 class="panel-title">Game Mode</h2>
+    <div class="form-group">
+        <label for="tournament-mode">Mode</label>
+        <select id="tournament-mode">
+            <!-- JS fills options -->
+        </select>
+    </div>
+
+    <div id="mode-settings">
+        <!-- JS renders mode-specific settings here -->
+    </div>
+</div>
+
+<!-- Emergency exit PIN -->
+<div class="panel">
+    <h2 class="panel-title">Emergency Exit</h2>
+    <p class="panel-desc">
+        On the device, press Backspace 5 times within 3 seconds to trigger PIN entry.
+        A USB stick with <code>TOURNAMENT.KEY</code> also exits tournament mode.
+    </p>
+    <div class="form-group">
+        <label for="tournament-pin">PIN <span class="label-hint">(4 digits)</span></label>
+        <div class="input-with-action">
+            <input type="password" id="tournament-pin" maxlength="4" pattern="[0-9]{4}"
+                   inputmode="numeric" autocomplete="off" placeholder="••••">
+            <button type="button" id="pin-show-btn" class="btn btn-secondary btn-small">Show</button>
         </div>
-        <hr>
+    </div>
+</div>
 
-        <div id="tournament-settings">
-            <div class="form-group">
-                <label for="tournament-mode">Game Mode</label>
-                <select id="tournament-mode" onchange="onTournamentModeChange()">
-                </select>
-            </div>
+<!-- Actions -->
+<div class="panel">
+    <div class="panel-actions">
+        <button id="save-tournament-btn" class="btn">Save Settings</button>
+    </div>
+    <div id="tournament-msg" class="message" style="display:none"></div>
+</div>
 
-            <div id="mode-settings-container">
-                <!-- Dynamically populated based on selected mode -->
-            </div>
-
-            <h3>Emergency Exit</h3>
-            <div class="form-group">
-                <label for="tournament-pin">PIN (4 digits)</label>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="password" id="tournament-pin" maxlength="4" pattern="[0-9]{4}"
-                           inputmode="numeric" style="width: 120px; letter-spacing: 0.3em; text-align: center;">
-                    <button type="button" class="btn btn-secondary btn-small" onclick="togglePinVisibility()">Show</button>
-                </div>
-                <small>5x Backspace on the device triggers PIN entry. USB stick with TOURNAMENT.KEY also exits tournament mode.</small>
-            </div>
-            <div id="pin-warning" class="message info hidden">
-                Default PIN in use — consider changing it for security.
-            </div>
-        </div>
-
-        <div class="form-actions">
-            <button type="submit" class="btn">Save Settings</button>
-        </div>
-        <div id="tournament-message" class="message hidden"></div>
-    </form>
-</section>
 {% endblock %}
 
-{% block scripts %}
-<script>
-    loadTournament();
-</script>
-{% endblock %}
+{% block page_js %}<script src="{{ url_for('static', filename='pages/tournament.js') }}"></script>{% endblock %}

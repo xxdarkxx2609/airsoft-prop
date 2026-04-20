@@ -1,17 +1,57 @@
 {% extends "base.html" %}
+{% set page_title = "Battery" %}
+{% set active = "battery" %}
 
-{% block content %}
-<section class="card">
-    <h2>Battery</h2>
-    <div id="battery-info">
-        <p class="loading">Loading battery info...</p>
+{% block main %}
+
+<div id="no-battery-msg" class="panel" style="display:none" role="status">
+    <p class="panel-desc">No battery module detected. Install a PiSugar or compatible battery HAL to enable battery monitoring.</p>
+</div>
+
+<!-- Battery stats -->
+<div class="panel" id="battery-panel">
+    <h2 class="panel-title">Battery</h2>
+    <div class="info-row">
+        <span class="info-label">Level</span>
+        <span class="info-value" id="bat-level">—</span>
     </div>
-</section>
+    <div id="bat-segbar" class="segbar" aria-label="Battery level bar" aria-hidden="true"></div>
+    <div class="info-row">
+        <span class="info-label">Voltage</span>
+        <span class="info-value" id="bat-voltage">—</span>
+    </div>
+    <div class="info-row">
+        <span class="info-label">Current</span>
+        <span class="info-value" id="bat-current">—</span>
+    </div>
+    <div class="info-row">
+        <span class="info-label">Charging</span>
+        <span class="info-value" id="bat-charging">—</span>
+    </div>
+    <div class="info-row">
+        <span class="info-label">Plugged In</span>
+        <span class="info-value" id="bat-plugged">—</span>
+    </div>
+    <div class="info-row">
+        <span class="info-label">Runtime Left</span>
+        <span class="info-value" id="bat-runtime">—</span>
+    </div>
+    <div class="info-row">
+        <span class="info-label">Time to Full</span>
+        <span class="info-value" id="bat-charge-time">—</span>
+    </div>
+</div>
+
+<!-- Sparkline -->
+<div class="panel">
+    <h2 class="panel-title">Voltage History</h2>
+    <svg id="sparkline-svg" viewBox="0 0 200 40" preserveAspectRatio="none"
+         aria-label="Battery voltage sparkline" role="img"
+         style="width:100%;height:60px;display:block;">
+        <polyline id="sparkline-line" points="" fill="none" stroke="var(--accent)" stroke-width="1.5"/>
+    </svg>
+</div>
+
 {% endblock %}
 
-{% block scripts %}
-<script>
-    fetchBatteryInfo();
-    setInterval(fetchBatteryInfo, 10000);
-</script>
-{% endblock %}
+{% block page_js %}<script src="{{ url_for('static', filename='pages/battery.js') }}"></script>{% endblock %}

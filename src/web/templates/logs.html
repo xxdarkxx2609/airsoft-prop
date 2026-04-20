@@ -1,42 +1,58 @@
 {% extends "base.html" %}
+{% set page_title = "Logs" %}
+{% set active = "logs" %}
 
-{% block content %}
-<section class="card">
-    <h2>Log Files</h2>
-    <div class="form-actions" style="margin-top: 0; margin-bottom: 12px;">
-        <select id="log-select" onchange="loadLogFile()">
-            <option value="">Select a log file...</option>
-        </select>
-        <button class="btn btn-small btn-secondary" onclick="fetchLogList()">Refresh</button>
-    </div>
-    <div id="log-files-info"></div>
-</section>
+{% block main %}
 
-<section class="card" id="log-viewer-card" class="hidden">
-    <div class="log-viewer-header">
-        <h2 id="log-viewer-title">Log Viewer</h2>
-        <div class="log-viewer-controls">
-            <label for="log-lines">Lines:</label>
-            <select id="log-lines" onchange="loadLogFile()">
+<!-- Controls -->
+<div class="panel">
+    <h2 class="panel-title">Log Viewer</h2>
+    <div class="log-controls">
+        <div class="form-group form-group-inline">
+            <label for="log-file-select">File</label>
+            <select id="log-file-select">
+                <option value="">Select a log file…</option>
+            </select>
+        </div>
+        <div class="form-group form-group-inline">
+            <label for="log-lines">Lines</label>
+            <select id="log-lines">
                 <option value="50">50</option>
                 <option value="100">100</option>
                 <option value="200" selected>200</option>
                 <option value="500">500</option>
                 <option value="0">All</option>
             </select>
-            <label for="log-filter">Filter:</label>
-            <input type="text" id="log-filter" placeholder="e.g. ERROR" oninput="filterLogLines()">
+        </div>
+        <div class="form-group form-group-inline">
+            <label for="log-level-filter">Level</label>
+            <select id="log-level-filter">
+                <option value="">ALL</option>
+                <option value="DEBUG">DEBUG</option>
+                <option value="INFO">INFO</option>
+                <option value="WARNING">WARNING</option>
+                <option value="ERROR">ERROR</option>
+            </select>
+        </div>
+        <div class="form-group form-group-inline form-group-grow">
+            <label for="log-search">Search</label>
+            <input type="search" id="log-search" placeholder="Filter text…">
+        </div>
+        <div class="log-controls-actions">
+            <button id="log-refresh-btn" class="btn btn-secondary btn-small">Refresh</button>
+            <a id="download-btn" class="btn btn-secondary btn-small" download>Download</a>
         </div>
     </div>
-    <div id="log-content" class="log-content">
-        <p class="loading">Select a log file above...</p>
+    <div id="log-status" class="log-status" aria-live="polite"></div>
+</div>
+
+<!-- Log output -->
+<div class="panel panel-flush">
+    <div class="log-viewer">
+        <div id="log-content" class="log-content" aria-live="polite" aria-label="Log output"></div>
     </div>
-    <div id="log-stats" class="log-stats"></div>
-</section>
+</div>
+
 {% endblock %}
 
-{% block scripts %}
-<script>
-    fetchLogList();
-</script>
-{% endblock %}
+{% block page_js %}<script src="{{ url_for('static', filename='pages/logs.js') }}"></script>{% endblock %}

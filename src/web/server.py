@@ -277,11 +277,208 @@ def create_app(
     # Pages
     # ------------------------------------------------------------------
 
+    # ------------------------------------------------------------------
+    # Branding context processor — injects into every template render
+    # ------------------------------------------------------------------
+
+    @app.context_processor
+    def _inject_branding():
+        branding = config.load_branding()
+        logo_url = None
+        if branding.get("logo_file"):
+            logo_path = config.project_root / "custom" / "branding" / branding["logo_file"]
+            if logo_path.exists():
+                mtime = int(logo_path.stat().st_mtime)
+                logo_url = f"/api/branding/logo?v={mtime}"
+        return {
+            "branding": {
+                "team_name": branding.get("team_name") or "AIRSOFT PROP",
+                "logo_url": logo_url,
+                "has_logo": logo_url is not None,
+            }
+        }
+
+    # ------------------------------------------------------------------
+    # Branding API
+    # ------------------------------------------------------------------
+
+    _ALLOWED_IMAGE_MAGIC = {
+        b"\x89PNG": "png",
+        b"\xff\xd8\xff": "jpeg",
+        b"RIFF": None,  # will be checked as WebP below
+    }
+
+    def _detect_image_type(header: bytes) -> str | None:
+        """Return 'png', 'jpeg', or 'webp' by magic bytes, or None if unknown."""
+        if header[:4] == b"\x89PNG":
+            return "png"
+        if header[:3] == b"\xff\xd8\xff":
+            return "jpeg"
+        if header[:4] == b"RIFF" and len(header) >= 12 and header[8:12] == b"WEBP":
+            return "webp"
+        return None
+
+    @app.route("/api/branding")
+    @require_auth_api
+    def api_branding_get():
+        """Return current branding configuration."""
+        branding = config.load_branding()
+        logo_url = None
+        has_logo = False
+        if branding.get("logo_file"):
+            logo_path = config.project_root / "custom" / "branding" / branding["logo_file"]
+            if logo_path.exists():
+                mtime = int(logo_path.stat().st_mtime)
+                logo_url = f"/api/branding/logo?v={mtime}"
+                has_logo = True
+        return jsonify({
+            "team_name": branding.get("team_name") or "",
+            "logo_url": logo_url,
+            "has_logo": has_logo,
+        })
+
+    @app.route("/api/branding", methods=["POST"])
+    @require_auth_api
+    def api_branding_set():
+        """Update team name and/or upload a new logo.
+
+        Accepts multipart/form-data with optional fields:
+        - team_name: string, max 32 chars
+        - logo: file (PNG/JPEG/WebP only, max 512 KB)
+        """
+        team_name = request.form.get("team_name", "").strip()[:32]
+        branding = config.load_branding()
+
+        if "logo" in request.files:
+            logo_file = request.files["logo"]
+            if logo_file.filename:
+                header = logo_file.read(12)
+                logo_file.seek(0)
+                img_type = _detect_image_type(header)
+                if img_type is None:
+                    return jsonify({
+                        "success": False,
+                        "message": "Unsupported image type. Use PNG, JPEG, or WebP (no SVG).",
+                    }), 400
+
+                logo_file.seek(0, 2)
+                size = logo_file.tell()
+                logo_file.seek(0)
+                if size > 512 * 1024:
+                    return jsonify({
+                        "success": False,
+                        "message": "Logo file too large (max 512 KB).",
+                    }), 400
+
+                branding_dir = config.project_root / "custom" / "branding"
+                branding_dir.mkdir(parents=True, exist_ok=True)
+
+                # Remove old logo file if different extension
+                old_logo = branding.get("logo_file")
+                new_filename = f"logo.{img_type}"
+                new_path = branding_dir / new_filename
+                logo_file.save(str(new_path))
+
+                if old_logo and old_logo != new_filename:
+                    old_path = branding_dir / old_logo
+                    if old_path.exists():
+                        old_path.unlink()
+
+                branding["logo_file"] = new_filename
+                logger.info("Branding logo uploaded: %s (%d bytes)", new_filename, size)
+
+        branding["team_name"] = team_name
+        config.save_branding(branding)
+
+        updated = config.load_branding()
+        logo_url = None
+        if updated.get("logo_file"):
+            logo_path = config.project_root / "custom" / "branding" / updated["logo_file"]
+            if logo_path.exists():
+                mtime = int(logo_path.stat().st_mtime)
+                logo_url = f"/api/branding/logo?v={mtime}"
+
+        return jsonify({
+            "success": True,
+            "branding": {
+                "team_name": updated.get("team_name") or "",
+                "logo_url": logo_url,
+                "has_logo": logo_url is not None,
+            },
+        })
+
+    @app.route("/api/branding/logo", methods=["DELETE"])
+    @require_auth_api
+    def api_branding_logo_delete():
+        """Remove the uploaded logo (keep team_name)."""
+        branding = config.load_branding()
+        logo_file = branding.get("logo_file")
+        if not logo_file:
+            return jsonify({"success": False, "message": "No logo set"}), 404
+
+        logo_path = config.project_root / "custom" / "branding" / logo_file
+        if logo_path.exists():
+            logo_path.unlink()
+
+        branding["logo_file"] = None
+        config.save_branding(branding)
+        logger.info("Branding logo removed")
+        return jsonify({"success": True})
+
+    @app.route("/api/branding/logo")
+    def api_branding_logo_get():
+        """Serve the uploaded logo. Intentionally unauthenticated so login page renders it."""
+        from flask import send_file
+        branding = config.load_branding()
+        logo_file = branding.get("logo_file")
+        if not logo_file:
+            return "No logo", 404
+
+        logo_path = config.project_root / "custom" / "branding" / logo_file
+        if not logo_path.exists():
+            return "Not found", 404
+
+        mime_map = {"png": "image/png", "jpeg": "image/jpeg", "webp": "image/webp"}
+        ext = logo_path.suffix.lstrip(".")
+        mimetype = mime_map.get(ext, "application/octet-stream")
+        mtime = logo_path.stat().st_mtime
+        etag = f'"{int(mtime)}"'
+
+        if request.headers.get("If-None-Match") == etag:
+            return "", 304
+
+        response = send_file(str(logo_path), mimetype=mimetype)
+        response.headers["Cache-Control"] = "public, max-age=86400"
+        response.headers["ETag"] = etag
+        return response
+
+    # ------------------------------------------------------------------
+    # Game state API (for Dashboard)
+    # ------------------------------------------------------------------
+
+    @app.route("/api/game-state")
+    @require_auth_api
+    def api_game_state():
+        """Return current game state snapshot for the Dashboard."""
+        ba = app.config.get("PROP_APP")
+        if ba is None or not hasattr(ba, "get_game_state_snapshot"):
+            return jsonify({
+                "state": "boot",
+                "device_name": config.get("game", "device_name", default="Prop"),
+                "armed": None,
+                "tournament": {
+                    "enabled": config.is_tournament_enabled(),
+                    "mode": config.get_tournament_mode(),
+                },
+                "recent_events": [],
+            })
+        return jsonify(ba.get_game_state_snapshot())
+
     @app.route("/")
     @require_auth_page
     def index():
-        """Redirect to WiFi page as main landing."""
-        return render_template("wifi.html", active="wifi")
+        """Dashboard landing page."""
+        return render_template("dashboard.html", active="dashboard")
 
     @app.route("/wifi")
     @require_auth_page
@@ -1580,6 +1777,42 @@ def create_app(
                 "message": str(e),
                 "restart_verified": False,
             }), 500
+
+    # ------------------------------------------------------------------
+    # Reboot / Shutdown API
+    # ------------------------------------------------------------------
+
+    @app.route("/api/system/reboot", methods=["POST"])
+    @require_auth_api
+    def api_system_reboot():
+        """Reboot the host device. Mock-safe on non-Pi platforms."""
+        if mock:
+            logger.info("Mock reboot requested")
+            return jsonify({"success": True, "message": "Mock: reboot simulated."})
+        import subprocess
+        try:
+            subprocess.Popen(["sudo", "-n", "systemctl", "reboot"])
+            logger.info("Reboot initiated via web interface")
+            return jsonify({"success": True, "message": "Reboot initiated."})
+        except Exception as e:
+            logger.exception("Reboot failed")
+            return jsonify({"success": False, "message": str(e)}), 500
+
+    @app.route("/api/system/shutdown", methods=["POST"])
+    @require_auth_api
+    def api_system_shutdown():
+        """Power off the host device. Mock-safe on non-Pi platforms."""
+        if mock:
+            logger.info("Mock shutdown requested")
+            return jsonify({"success": True, "message": "Mock: shutdown simulated."})
+        import subprocess
+        try:
+            subprocess.Popen(["sudo", "-n", "systemctl", "poweroff"])
+            logger.info("Shutdown initiated via web interface")
+            return jsonify({"success": True, "message": "Shutdown initiated."})
+        except Exception as e:
+            logger.exception("Shutdown failed")
+            return jsonify({"success": False, "message": str(e)}), 500
 
     return app
 

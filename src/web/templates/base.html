@@ -1,50 +1,211 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Airsoft Prop</title>
+    <title>{{ page_title | default('Dashboard') }} — Airsoft Prop</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='10' fill='none' stroke='%238bc34a' stroke-width='2'/%3E%3Ccircle cx='12' cy='12' r='3' fill='%238bc34a'/%3E%3Cline x1='12' y1='2' x2='12' y2='6' stroke='%238bc34a' stroke-width='2'/%3E%3Cline x1='12' y1='18' x2='12' y2='22' stroke='%238bc34a' stroke-width='2'/%3E%3Cline x1='2' y1='12' x2='6' y2='12' stroke='%238bc34a' stroke-width='2'/%3E%3Cline x1='18' y1='12' x2='22' y2='12' stroke='%238bc34a' stroke-width='2'/%3E%3C/svg%3E">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <header>
-        <h1>&#x1f3af; Airsoft Prop</h1>
-        <nav>
-            <a href="/wifi" class="{% if active == 'wifi' %}active{% endif %}">WiFi</a>
-            <a href="/tournament" class="{% if active == 'tournament' %}active{% endif %}">Tournament</a>
-            <a href="/usb-keys" class="{% if active == 'usb-keys' %}active{% endif %}">USB Keys</a>
-            <a href="/config" class="{% if active == 'config' %}active{% endif %}">Settings</a>
-            <a href="/hardware" class="{% if active == 'hardware' %}active{% endif %}">Hardware</a>
-            <a href="/sounds" class="{% if active == 'sounds' %}active{% endif %}">Sounds</a>
-            <a href="/system" class="{% if active == 'system' %}active{% endif %}">System</a>
-            <a href="/battery" class="{% if active == 'battery' %}active{% endif %}">Battery</a>
-            <a href="/logs" class="{% if active == 'logs' %}active{% endif %}">Logs</a>
-            <a href="/update" class="{% if active == 'update' %}active{% endif %}">Update</a>
-            <a href="/security" class="{% if active == 'security' %}active{% endif %}">Security</a>
-        </nav>
+
+<!-- ═══════════════════════════════════════════════════════ SVG SPRITE ══ -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+    <symbol id="icon-dashboard" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+        <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+    </symbol>
+    <symbol id="icon-tournament" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M6 9H4a2 2 0 0 0-2 2v1a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v1a2 2 0 0 1-2 2h-2"/>
+        <path d="M6 4h12v10a6 6 0 0 1-12 0V4z"/><path d="M9 21h6"/><path d="M12 17v4"/>
+    </symbol>
+    <symbol id="icon-config" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    </symbol>
+    <symbol id="icon-wifi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+        <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1" fill="currentColor"/>
+    </symbol>
+    <symbol id="icon-usb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 5H8a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+        <rect x="10" y="2" width="4" height="4" rx="1"/><path d="M12 14v2"/><path d="M9 11h6"/>
+    </symbol>
+    <symbol id="icon-system" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/>
+    </symbol>
+    <symbol id="icon-battery" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="7" width="16" height="10" rx="2"/><path d="M22 11v2"/><path d="M6 11h6"/>
+    </symbol>
+    <symbol id="icon-logs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <path d="M14 2v6h6"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><line x1="8" y1="9" x2="10" y2="9"/>
+    </symbol>
+    <symbol id="icon-update" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+    </symbol>
+    <symbol id="icon-security" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+    </symbol>
+    <symbol id="icon-logout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+    </symbol>
+    <symbol id="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="5"/>
+        <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+        <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+    </symbol>
+    <symbol id="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </symbol>
+    <symbol id="icon-burger" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+    </symbol>
+    <symbol id="icon-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+    </symbol>
+</svg>
+
+<!-- ═══════════════════════════════════════════════════════ SIDEBAR ═══ -->
+<aside class="sidebar" id="sidebar" role="navigation" aria-label="Main navigation">
+    <div class="sidebar-brand">
+        {% if branding and branding.logo_url %}
+        <img src="{{ branding.logo_url }}" alt="Team logo" class="brand-logo">
+        {% else %}
+        <svg class="brand-crosshair" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+            <circle cx="24" cy="24" r="20"/>
+            <circle cx="24" cy="24" r="7"/>
+            <line x1="24" y1="4" x2="24" y2="15"/>
+            <line x1="24" y1="33" x2="24" y2="44"/>
+            <line x1="4" y1="24" x2="15" y2="24"/>
+            <line x1="33" y1="24" x2="44" y2="24"/>
+        </svg>
+        {% endif %}
+        <span class="brand-name">{{ branding.team_name if branding else 'AIRSOFT PROP' }}</span>
+    </div>
+
+    <nav class="sidebar-nav" aria-label="Site sections">
+        <div class="nav-section">
+            <span class="nav-section-label">Operations</span>
+            <a href="/" class="nav-link {% if active == 'dashboard' %}active{% endif %}" aria-current="{% if active == 'dashboard' %}page{% endif %}">
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-dashboard"/></svg>
+                <span>Dashboard</span>
+            </a>
+            <a href="/tournament" class="nav-link {% if active == 'tournament' %}active{% endif %}" aria-current="{% if active == 'tournament' %}page{% endif %}">
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-tournament"/></svg>
+                <span>Tournament</span>
+            </a>
+            <a href="/config" class="nav-link {% if active == 'config' %}active{% endif %}" aria-current="{% if active == 'config' %}page{% endif %}">
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-config"/></svg>
+                <span>Config</span>
+            </a>
+        </div>
+
+        <div class="nav-section">
+            <span class="nav-section-label">Network</span>
+            <a href="/wifi" class="nav-link {% if active == 'wifi' %}active{% endif %}" aria-current="{% if active == 'wifi' %}page{% endif %}">
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-wifi"/></svg>
+                <span>WiFi</span>
+            </a>
+            <a href="/usb-keys" class="nav-link {% if active == 'usb-keys' %}active{% endif %}" aria-current="{% if active == 'usb-keys' %}page{% endif %}">
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-usb"/></svg>
+                <span>USB Keys</span>
+            </a>
+        </div>
+
+        <div class="nav-section">
+            <span class="nav-section-label">Diagnostics</span>
+            <a href="/system" class="nav-link {% if active == 'system' %}active{% endif %}" aria-current="{% if active == 'system' %}page{% endif %}">
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-system"/></svg>
+                <span>System</span>
+            </a>
+            <a href="/battery" class="nav-link {% if active == 'battery' %}active{% endif %}" aria-current="{% if active == 'battery' %}page{% endif %}">
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-battery"/></svg>
+                <span>Battery</span>
+            </a>
+            <a href="/logs" class="nav-link {% if active == 'logs' %}active{% endif %}" aria-current="{% if active == 'logs' %}page{% endif %}">
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-logs"/></svg>
+                <span>Logs</span>
+            </a>
+            <a href="/update" class="nav-link {% if active == 'update' %}active{% endif %}" aria-current="{% if active == 'update' %}page{% endif %}">
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-update"/></svg>
+                <span>Update</span>
+            </a>
+        </div>
+
+        <div class="nav-section">
+            <span class="nav-section-label">Access</span>
+            <a href="/security" class="nav-link {% if active == 'security' %}active{% endif %}" aria-current="{% if active == 'security' %}page{% endif %}">
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-security"/></svg>
+                <span>Security</span>
+            </a>
+        </div>
+    </nav>
+
+    <div class="sidebar-bottom">
+        <div id="sidebar-clock" class="sidebar-clock" aria-live="polite">
+            <div class="sidebar-clock-uptime" id="sb-uptime">—</div>
+            <div class="sidebar-clock-ip" id="sb-ip">—</div>
+        </div>
+
         {% if is_authenticated and password_set %}
-        <form method="post" action="/logout" class="logout-form">
-            <button type="submit" class="btn btn-secondary btn-small">Logout</button>
+        <form method="post" action="/logout" class="sidebar-logout">
+            <button type="submit" class="btn btn-secondary btn-small sidebar-logout-btn">
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-logout"/></svg>
+                <span>Logout</span>
+            </button>
         </form>
         {% endif %}
-    </header>
+    </div>
+</aside>
 
-    <main>
-        {% if no_password_warning %}
-        <div class="warning-banner">
-            No admin password is set — anyone on the network can change device settings.
-            <a href="/security">Set a password</a>
+<!-- ═══════════════════════════════════════════════════════ SCRIM ══════ -->
+<div id="sidebar-scrim" class="sidebar-scrim" aria-hidden="true"></div>
+
+<!-- ═══════════════════════════════════════════════════════ HEADER ═════ -->
+<header class="site-header" role="banner">
+    <button class="burger-btn" id="burger-btn" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar">
+        <svg class="nav-icon" aria-hidden="true"><use href="#icon-burger"/></svg>
+    </button>
+
+    <h1 class="header-title">{{ page_title | default('Dashboard') }}</h1>
+
+    <div class="header-actions">
+        <div class="chip" id="header-wifi-chip" aria-live="polite">
+            <span class="chip-dot" id="header-wifi-dot"></span>
+            <span class="chip-text" id="header-wifi-text">Checking…</span>
         </div>
-        {% endif %}
-        {% block content %}{% endblock %}
-    </main>
 
-    <footer>
-        <span id="connection-status" class="status-dot disconnected"></span>
-        <span id="connection-text">Checking...</span>
-    </footer>
+        <button class="theme-btn icon-btn" id="theme-toggle" aria-label="Toggle theme" title="Toggle light/dark theme">
+            <svg class="nav-icon theme-icon-dark" aria-hidden="true"><use href="#icon-moon"/></svg>
+            <svg class="nav-icon theme-icon-light" aria-hidden="true"><use href="#icon-sun"/></svg>
+        </button>
+    </div>
+</header>
 
-    <script src="{{ url_for('static', filename='app.js') }}"></script>
-    {% block scripts %}{% endblock %}
+<!-- ═══════════════════════════════════════════════════════ MAIN ════════ -->
+<main class="site-main" role="main">
+    {% if no_password_warning %}
+    <div class="warning-banner" role="alert">
+        No admin password is set — anyone on the network can change device settings.
+        <a href="/security">Set a password</a>
+    </div>
+    {% endif %}
+
+    {% block content %}{% endblock %}
+    {% block main %}{% endblock %}
+</main>
+
+<!-- ═══════════════════════════════════════════════════════ SCANLINES ═══ -->
+<div class="scanline-overlay" aria-hidden="true"></div>
+
+<!-- ═══════════════════════════════════════════════════════ SCRIPTS ══════ -->
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+{% block scripts %}{% endblock %}
+{% block page_js %}{% endblock %}
+
 </body>
 </html>

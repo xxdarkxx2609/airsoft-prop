@@ -1,16 +1,80 @@
 {% extends "base.html" %}
+{% set page_title = "System" %}
+{% set active = "system" %}
 
-{% block content %}
-<section class="card">
-    <h2>System Information</h2>
-    <div id="system-info">
-        <p class="loading">Loading system info...</p>
+{% block main %}
+
+<!-- System info -->
+<div class="panel">
+    <h2 class="panel-title">
+        System Information
+        <span id="mock-mode-badge" class="chip chip-warning" style="display:none">Mock Mode</span>
+    </h2>
+    <div class="info-row">
+        <span class="info-label">Version</span>
+        <span class="info-value" id="sys-version">—</span>
     </div>
-</section>
+    <div class="info-row">
+        <span class="info-label">Platform</span>
+        <span class="info-value" id="sys-platform">—</span>
+    </div>
+    <div class="info-row">
+        <span class="info-label">Python</span>
+        <span class="info-value" id="sys-python">—</span>
+    </div>
+    <div class="info-row">
+        <span class="info-label">Hostname</span>
+        <span class="info-value" id="sys-hostname">—</span>
+    </div>
+    <div class="info-row">
+        <span class="info-label">CPU Temp</span>
+        <span class="info-value" id="sys-cpu-temp">—</span>
+    </div>
+    <div class="info-row">
+        <span class="info-label">Uptime</span>
+        <span class="info-value" id="sys-uptime">—</span>
+    </div>
+    <div class="info-row">
+        <span class="info-label">RAM Used</span>
+        <span class="info-value"><span id="sys-ram-used">—</span> / <span id="sys-ram-total">—</span> (<span id="sys-ram-percent">—</span>)</span>
+    </div>
+    <div class="progress-bar-wrap" aria-hidden="true">
+        <div id="ram-bar" class="progress-bar-fill" style="width:0%"></div>
+    </div>
+</div>
+
+<!-- Hardware modules -->
+<div class="panel">
+    <h2 class="panel-title">Hardware Modules</h2>
+    <p class="panel-desc">
+        Select the HAL implementation for each hardware component. Changes take effect after a service restart.
+    </p>
+    <div id="hardware-form" aria-live="polite">
+        <!-- JS renders dropdowns for each HAL module -->
+    </div>
+    <div id="restart-warning" class="warning-banner" style="display:none" role="alert">
+        Hardware configuration changed — a service restart is required to apply changes.
+    </div>
+    <div class="panel-actions">
+        <button id="save-hardware-btn" class="btn">Save Hardware Config</button>
+    </div>
+    <div id="hardware-msg" class="message" style="display:none"></div>
+</div>
+
+<!-- Actions -->
+<div class="panel">
+    <h2 class="panel-title">Actions</h2>
+    <div class="panel-actions panel-actions-spread">
+        <div class="action-group">
+            <button id="restart-service-btn" class="btn btn-secondary">Restart Service</button>
+            <button id="reboot-btn" class="btn btn-secondary">Reboot</button>
+            <button id="shutdown-btn" class="btn btn-danger">Shutdown</button>
+        </div>
+    </div>
+    <div id="restart-status" class="message" style="display:none"></div>
+    <div id="system-msg" class="message" style="display:none"></div>
+</div>
+
 {% endblock %}
 
-{% block scripts %}
-<script>
-    fetchSystemInfo();
-</script>
-{% endblock %}
+{% block page_js %}<script src="{{ url_for('static', filename='pages/system.js') }}"></script>{% endblock %}
