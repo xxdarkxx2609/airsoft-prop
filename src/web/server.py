@@ -1263,9 +1263,8 @@ def create_app(
         Returns status for both DEFUSE.KEY and TOURNAMENT.KEY.
 
         For each key type the returned dict contains:
-        - ``defuse_status``: ``"none"`` | ``"registered"`` | ``"permissive"``
-        - ``defuse_label``: human label if registered, ``"PERMISSIVE KEY"`` if
-          the file exists but the hash is not in known_hashes, or ``""``
+        - ``defuse_status``: ``"none"`` | ``"registered"`` | ``"unrecognized"``
+        - ``defuse_label``: human label if registered, or ``""``
         - same keys for ``tournament_*``
 
         Args:
@@ -1299,9 +1298,9 @@ def create_app(
                         continue
             except OSError:
                 pass
-            # File exists but hash not in known_hashes → permissive / self-made key
-            result[status_key] = "permissive"
-            result[label_key] = "PERMISSIVE KEY"
+            # File exists but hash not in known_hashes → unrecognized key
+            result[status_key] = "unrecognized"
+            result[label_key] = ""
 
         return result
 

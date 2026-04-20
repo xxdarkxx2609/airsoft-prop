@@ -1,5 +1,8 @@
 /* USB Keys page */
 
+let _permissiveDefuse = true;
+let _permissiveTournament = true;
+
 // ----------------------------------------------------------------
 // Load registered keys + security badges
 // ----------------------------------------------------------------
@@ -7,6 +10,9 @@
 async function loadUsbKeys() {
     try {
         const data = await apiGet("/api/usb-keys");
+
+        _permissiveDefuse = !!data.permissive_defuse;
+        _permissiveTournament = !!data.permissive_tournament;
 
         _renderKeyList("defuse-keys-list", "defuse", data.defuse_keys || []);
         _renderKeyList("tournament-keys-list", "tournament", data.tournament_keys || []);
@@ -91,8 +97,8 @@ async function refreshUsbSticks() {
                 listEl.innerHTML = sticks.map(s => {
                     const name = String(s.display_name || s.mount_point || "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
                     const size = s.size_total ? `${s.size_total} total, ${s.size_free || "?"} free` : "—";
-                    const defuseBadge = _statusBadge("Defuse", s.defuse_status, s.defuse_label);
-                    const tourneyBadge = _statusBadge("Tournament", s.tournament_status, s.tournament_label);
+                    const defuseBadge = _statusBadge("Defuse", s.defuse_status, s.defuse_label, _permissiveDefuse);
+                    const tourneyBadge = _statusBadge("Tournament", s.tournament_status, s.tournament_label, _permissiveTournament);
                     return `<div class="stick-item">
                         <div class="stick-info">
                             <span class="stick-name">${name}</span>
@@ -108,14 +114,19 @@ async function refreshUsbSticks() {
     }
 }
 
-function _statusBadge(kind, status, label) {
-    if (!status || status === "none") return "";
+function _statusBadge(kind, status, label, permissive) {
+    if (!status || status === "none") {
+        return permissive ? "" : `<span class="chip chip-danger">${kind}: UNKNOWN</span>`;
+    }
     if (status === "registered") {
         const safeLabel = String(label || kind).replace(/&/g, "&amp;").replace(/</g, "&lt;");
         return `<span class="chip chip-success">${kind}: ${safeLabel}</span>`;
     }
     if (status === "permissive") {
         return `<span class="chip chip-warning">${kind}: PERMISSIVE</span>`;
+    }
+    if (status === "unrecognized") {
+        return `<span class="chip chip-danger">${kind}: UNRECOGNIZED</span>`;
     }
     return `<span class="chip">${kind}: ${status}</span>`;
 }

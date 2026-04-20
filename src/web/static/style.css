@@ -374,6 +374,10 @@ a:hover {
 .chip-dot.disconnected { background: var(--danger); }
 .chip-dot.ap-mode      { background: var(--warning); }
 
+.chip-warning { background: rgba(243, 156, 18, 0.1); border-color: var(--warning); color: var(--warning); }
+.chip-success { background: rgba(46, 204, 113, 0.1); border-color: var(--success); color: var(--success); }
+.chip-danger  { background: rgba(230, 57, 70, 0.1);  border-color: var(--danger);  color: var(--danger); }
+
 .chip-text {
     max-width: 140px;
     overflow: hidden;
