@@ -9,7 +9,7 @@ add "Play" Symbol to "Preview" Button and move Preview Button to the right to be
 
 File Selection Button does not match Interface asthetics -> Overhaul to look more like Mock
 
-Space out "Save config" "Discard" and "Reset to Defaults" Buttons on Config Screen
+Space out "Save config" "Discard" and "Reset to Defaults" Buttons on Config Screen, do the same to Buttons on "Update" Screen
 
 Dashboard -> Recent Events "no recent events." what should be displayed here?
 
