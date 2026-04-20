@@ -583,6 +583,7 @@ class App:
         self._running = True
         self.screen_manager.switch_to("boot")
         logger.info("Main loop started")
+        self._append_recent_event("boot", "System started")
 
         # Register signal handlers for graceful shutdown
         def _signal_handler(signum: int, frame: Any) -> None:

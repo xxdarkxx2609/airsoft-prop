@@ -26,7 +26,9 @@
             <img id="logo-preview" src="" alt="Team logo preview" style="display:none" class="logo-preview">
         </div>
         <div class="file-input-row">
-            <input type="file" id="logo-upload" accept="image/png,image/jpeg,image/svg+xml,image/webp">
+            <label for="logo-upload" class="btn btn-secondary btn-small">Choose File</label>
+            <input type="file" id="logo-upload" accept="image/png,image/jpeg,image/webp" style="display:none">
+            <span id="logo-filename" class="file-chosen">No file chosen</span>
             <button id="delete-logo-btn" class="btn btn-danger btn-small">Remove Logo</button>
         </div>
     </div>
@@ -123,7 +125,9 @@
     <h2 class="panel-title">Custom Sounds</h2>
     <div id="sounds-list" class="sounds-list" aria-live="polite"></div>
     <div class="file-input-row" style="margin-top: 0.75rem;">
-        <input type="file" id="sound-upload" accept="audio/mpeg,audio/ogg,audio/wav,audio/x-wav">
+        <label for="sound-upload" class="btn btn-secondary btn-small">Choose File</label>
+        <input type="file" id="sound-upload" accept="audio/wav,audio/x-wav" style="display:none">
+        <span id="sound-filename" class="file-chosen">No file chosen</span>
         <button id="sound-upload-btn" class="btn btn-secondary btn-small">Upload Sound</button>
     </div>
     <div id="sounds-msg" class="message" style="display:none"></div>
@@ -132,10 +136,8 @@
 <!-- Actions -->
 <div class="panel">
     <div class="panel-actions panel-actions-spread">
-        <div>
-            <button id="save-config-btn" class="btn">Save Config</button>
-            <button id="discard-config-btn" class="btn btn-secondary">Discard</button>
-        </div>
+        <button id="save-config-btn" class="btn">Save Config</button>
+        <button id="discard-config-btn" class="btn btn-secondary">Discard</button>
         <button id="reset-config-btn" class="btn btn-danger">Reset to Defaults</button>
     </div>
     <div id="config-msg" class="message" style="display:none"></div>

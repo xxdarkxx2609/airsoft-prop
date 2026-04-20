@@ -979,6 +979,8 @@ def create_app(
                 })
 
         logger.info("Configuration updated via web interface: %s", list(data.keys()))
+        if ba:
+            ba._append_recent_event("info", "Config saved via web")
         return jsonify({"success": True, "message": "Configuration saved"})
 
     @app.route("/api/config/reset", methods=["POST"])
@@ -1124,16 +1126,22 @@ def create_app(
 
         import subprocess
         try:
-            subprocess.run(["git", "fetch"], capture_output=True, timeout=15)
+            subprocess.run(["git", "fetch", "--tags"], capture_output=True, timeout=15)
             result = subprocess.run(
                 ["git", "log", "HEAD..origin/main", "--format=%B%x00"],
                 capture_output=True, text=True, timeout=10,
             )
             raw = result.stdout.strip() if result.stdout.strip() else ""
             commits = [c.strip() for c in raw.split("\x00") if c.strip()] if raw else []
+            tag_result = subprocess.run(
+                ["git", "describe", "--tags", "--abbrev=0", "origin/main"],
+                capture_output=True, text=True, timeout=5,
+            )
+            latest_version = tag_result.stdout.strip() if tag_result.returncode == 0 and tag_result.stdout.strip() else None
             return jsonify({
                 "available": len(commits) > 0,
                 "current_version": config.get("version", default="unknown"),
+                "latest_version": latest_version,
                 "commits_behind": len(commits),
                 "changes": commits[:10],
                 "message": f"{len(commits)} new commits available" if commits else "Up to date",
@@ -1749,6 +1757,9 @@ def create_app(
 
             # Step 3: Trigger restart asynchronously so we can respond before the process dies
             logger.info("Issuing systemctl restart command (fire-and-forget)")
+            ba = app.config.get("PROP_APP")
+            if ba is not None:
+                ba._append_recent_event("info", "Service restart initiated")
             subprocess.Popen(
                 ["sudo", "-n", "systemctl", "restart", "airsoft-prop"],
                 stdout=subprocess.DEVNULL,

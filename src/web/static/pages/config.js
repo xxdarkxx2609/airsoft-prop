@@ -145,11 +145,15 @@ async function loadSounds() {
             return;
         }
         el.innerHTML = sounds.map(s => {
-            const name = String(s.name || s).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+            const filename = s.filename || "";
+            const display = filename.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+            const safe = encodeURIComponent(filename);
             return `<div class="sound-item">
-                <span class="sound-name">${name}</span>
-                <button class="btn btn-secondary btn-small" onclick="previewSound('${name}')">Preview</button>
-                <button class="btn btn-danger btn-small" onclick="deleteSound('${name}')">Delete</button>
+                <span class="sound-name">${display}</span>
+                <div class="sound-actions">
+                    <button class="btn btn-secondary btn-small" onclick="previewSound('${safe}')">&#9654; Preview</button>
+                    <button class="btn btn-danger btn-small" onclick="deleteSound('${safe}')">Delete</button>
+                </div>
             </div>`;
         }).join("");
     } catch (_) {
@@ -179,10 +183,11 @@ async function uploadSound(event) {
     }
 }
 
-async function deleteSound(name) {
-    if (!confirm(`Delete sound "${name}"?`)) return;
+async function deleteSound(encodedName) {
+    const displayName = decodeURIComponent(encodedName);
+    if (!confirm(`Delete sound "${displayName}"?`)) return;
     try {
-        const resp = await fetch(`/api/sounds/${encodeURIComponent(name)}`, { method: "DELETE" });
+        const resp = await fetch(`/api/sounds/${encodedName}`, { method: "DELETE" });
         const result = await resp.json();
         showMessage("sounds-msg", result.message || (result.success ? "Deleted." : "Delete failed."), result.success ? "success" : "error");
         if (result.success) loadSounds();
@@ -191,12 +196,12 @@ async function deleteSound(name) {
     }
 }
 
-function previewSound(name) {
+function previewSound(encodedName) {
     const existing = document.getElementById("sound-preview-player");
     if (existing) existing.remove();
     const audio = document.createElement("audio");
     audio.id = "sound-preview-player";
-    audio.src = `/api/sounds/preview/${encodeURIComponent(name)}`;
+    audio.src = `/api/sounds/preview/${encodedName}`;
     audio.autoplay = true;
     document.body.appendChild(audio);
 }
@@ -294,4 +299,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const deleteLogoBtn = document.getElementById("delete-logo-btn");
     if (deleteLogoBtn) deleteLogoBtn.addEventListener("click", deleteLogo);
+
+    const logoUpload = document.getElementById("logo-upload");
+    const logoFilename = document.getElementById("logo-filename");
+    if (logoUpload && logoFilename) {
+        logoUpload.addEventListener("change", () => {
+            logoFilename.textContent = logoUpload.files.length ? logoUpload.files[0].name : "No file chosen";
+        });
+    }
+
+    const soundUpload = document.getElementById("sound-upload");
+    const soundFilenameEl = document.getElementById("sound-filename");
+    if (soundUpload && soundFilenameEl) {
+        soundUpload.addEventListener("change", () => {
+            soundFilenameEl.textContent = soundUpload.files.length ? soundUpload.files[0].name : "No file chosen";
+        });
+    }
 });

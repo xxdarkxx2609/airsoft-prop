@@ -90,41 +90,16 @@ function closeDrawer() {
 }
 
 // ----------------------------------------------------------------
-// Sidebar clock (live uptime ticker)
+// Sidebar info (IP address, one-time fetch)
 // ----------------------------------------------------------------
 
-async function initSidebarClock() {
-    const uptimeEl = document.getElementById("sb-uptime");
-    const ipEl     = document.getElementById("sb-ip");
-    if (!uptimeEl && !ipEl) return;
-
-    let bootEpoch = null;
-
+async function initSidebarInfo() {
+    const ipEl = document.getElementById("sb-ip");
+    if (!ipEl) return;
     try {
-        const data = await apiGet("/api/system");
-        if (data.uptime_seconds !== undefined) {
-            bootEpoch = Date.now() - data.uptime_seconds * 1000;
-        }
-        if (ipEl && data.ip_address) {
-            ipEl.textContent = data.ip_address;
-        }
+        const status = await apiGet("/api/wifi/status");
+        ipEl.textContent = status.ip_address || status.ssid || "—";
     } catch (_) {}
-
-    function tick() {
-        if (!uptimeEl) return;
-        if (bootEpoch === null) {
-            uptimeEl.textContent = "UP --:--:--";
-            return;
-        }
-        const secs = Math.floor((Date.now() - bootEpoch) / 1000);
-        const h = Math.floor(secs / 3600);
-        const m = Math.floor((secs % 3600) / 60);
-        const s = secs % 60;
-        uptimeEl.textContent = `UP ${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-    }
-
-    tick();
-    setInterval(tick, 1000);
 }
 
 // ----------------------------------------------------------------
@@ -206,7 +181,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initTheme();
     initSteppers();
     fetchWifiStatus();
-    initSidebarClock();
+    initSidebarInfo();
 
     const themeBtn = document.getElementById("theme-toggle");
     if (themeBtn) themeBtn.addEventListener("click", toggleTheme);

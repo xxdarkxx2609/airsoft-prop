@@ -1280,6 +1280,67 @@ textarea:focus {
     color: var(--text-muted);
 }
 
+/* ── Login Logo ──────────────────────────────────────────────────────── */
+.login-logo {
+    max-width: 200px;
+    max-height: 120px;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto 8px;
+}
+
+.logo-preview {
+    max-width: 200px;
+    max-height: 120px;
+    object-fit: contain;
+}
+
+/* ── Panel Actions ───────────────────────────────────────────────────── */
+.panel-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.panel-actions-spread {
+    justify-content: space-between;
+}
+
+/* ── File Input Row ──────────────────────────────────────────────────── */
+.file-input-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+
+.file-chosen {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ── Quick Link Buttons ──────────────────────────────────────────────── */
+.shortcut-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.shortcut-btn {
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 16px;
+    text-decoration: none;
+}
+
 /* ── Login Page ──────────────────────────────────────────────────────── */
 .login-body {
     display: flex;
