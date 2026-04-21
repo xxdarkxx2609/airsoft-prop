@@ -21,6 +21,7 @@ TimeoutStopSec=15
 
 # Environment
 Environment=PYTHONUNBUFFERED=1
+Environment=GPIOZERO_PIN_FACTORY=rpigpio
 
 [Install]
 WantedBy=multi-user.target
