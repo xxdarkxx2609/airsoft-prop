@@ -25,6 +25,7 @@ from flask import Flask, g, jsonify, redirect, render_template, request, session
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from src.hal.base import BatteryBase
+from src.modes.base_mode import SetupOptionType
 from src.utils.config import Config
 from src.utils.logger import get_logger
 from src.web.wifi_manager import WifiManagerBase, create_wifi_manager
@@ -771,15 +772,20 @@ def create_app(
                 # Serialize setup options
                 options = []
                 for opt in mode.get_setup_options():
+                    if opt.option_type == SetupOptionType.RANGE:
+                        opt_type = "timer" if opt.key == "timer" else "int"
+                    else:
+                        opt_type = opt.option_type.value
                     options.append({
                         "key": opt.key,
                         "label": opt.label,
-                        "type": opt.option_type.value,
+                        "type": opt_type,
                         "default": opt.default,
                         "min": opt.min_val,
                         "max": opt.max_val,
                         "step": opt.step,
                         "large_step": opt.large_step,
+                        "choices": opt.choices,
                     })
                 available_modes.append({
                     "module": module_name,

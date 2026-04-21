@@ -109,6 +109,21 @@ function renderModeSettings(moduleKey, currentSettings) {
                        value="${val || ""}" maxlength="${opt.max ?? 10}"
                        pattern="[0-9]*" inputmode="numeric" placeholder="Digits…">
             </div>`;
+        } else if (opt.type === "select") {
+            const choices = opt.choices || [];
+            const optionsHtml = choices.map(c =>
+                `<option value="${c}"${val === c ? " selected" : ""}>${c === "" ? "Random" : c}</option>`
+            ).join("");
+            html += `<div class="form-group">
+                <label for="${id}">${opt.label}</label>
+                <select id="${id}" data-mode-key="${opt.key}">${optionsHtml}</select>
+            </div>`;
+        } else if (opt.type === "text") {
+            html += `<div class="form-group">
+                <label for="${id}">${opt.label}</label>
+                <input type="text" id="${id}" data-mode-key="${opt.key}"
+                       value="${val || ""}" maxlength="${opt.max ?? 20}" placeholder="Optional…">
+            </div>`;
         }
     });
 

@@ -103,6 +103,7 @@ class CutTheWireMode(BaseMode):
 
     def get_setup_options(self) -> list[SetupOption]:
         """Return setup options for the LCD setup screen."""
+        wire_choices = ["", "Green", "Blue", "White", "Yellow", "Red"]
         return [
             SetupOption(
                 key="timer",
@@ -113,6 +114,47 @@ class CutTheWireMode(BaseMode):
                 max_val=5999,
                 step=30,
                 large_step=300,
+            ),
+            SetupOption(
+                key="cut_wire_penalty_base",
+                label="Penalty Base",
+                option_type=SetupOptionType.RANGE,
+                default=60,
+                min_val=10,
+                max_val=600,
+                step=10,
+                large_step=60,
+            ),
+            SetupOption(
+                key="cut_wire_penalty_mult",
+                label="Penalty Mult",
+                option_type=SetupOptionType.RANGE,
+                default=2,
+                min_val=1,
+                max_val=10,
+                step=1,
+                large_step=1,
+            ),
+            SetupOption(
+                key="cut_wire_hint",
+                label="Hint",
+                option_type=SetupOptionType.TEXT,
+                default="",
+                max_val=20,
+            ),
+            SetupOption(
+                key="cut_wire_defuse",
+                label="Defuse Wire",
+                option_type=SetupOptionType.SELECT,
+                default="",
+                choices=wire_choices,
+            ),
+            SetupOption(
+                key="cut_wire_detonate",
+                label="Detonate Wire",
+                option_type=SetupOptionType.SELECT,
+                default="",
+                choices=wire_choices,
             ),
         ]
 

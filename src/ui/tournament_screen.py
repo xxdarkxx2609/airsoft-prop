@@ -8,7 +8,7 @@ Supports PIN-based and USB-based exit mechanisms for the organizer.
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from src.hal.base import DisplayBase
 from src.modes.base_mode import BaseMode, GameContext, PlantingType, SetupOptionType
@@ -250,20 +250,25 @@ class TournamentScreen(BaseScreen):
         context.custom_data["crack_interval"] = self.app.config.get(
             "modes", "usb_key_cracker", "crack_interval", default=2.5,
         )
-        context.custom_data["cut_wire_penalty_base"] = float(self.app.config.get(
-            "modes", "cut_the_wire", "penalty_base_seconds", default=60,
+        def _ctw(key: str, config_path: tuple, default: Any) -> Any:
+            if key in settings:
+                return settings[key]
+            return self.app.config.get(*config_path, default=default)
+
+        context.custom_data["cut_wire_penalty_base"] = float(_ctw(
+            "cut_wire_penalty_base", ("modes", "cut_the_wire", "penalty_base_seconds"), 60,
         ))
-        context.custom_data["cut_wire_penalty_multiplier"] = float(self.app.config.get(
-            "modes", "cut_the_wire", "penalty_multiplier", default=2.0,
+        context.custom_data["cut_wire_penalty_multiplier"] = float(_ctw(
+            "cut_wire_penalty_mult", ("modes", "cut_the_wire", "penalty_multiplier"), 2.0,
         ))
-        context.custom_data["cut_wire_hint"] = str(self.app.config.get(
-            "modes", "cut_the_wire", "hint", default="",
+        context.custom_data["cut_wire_hint"] = str(_ctw(
+            "cut_wire_hint", ("modes", "cut_the_wire", "hint"), "",
         ))[:20]
-        context.custom_data["cut_wire_defuse"] = str(self.app.config.get(
-            "modes", "cut_the_wire", "defuse_wire", default="",
+        context.custom_data["cut_wire_defuse"] = str(_ctw(
+            "cut_wire_defuse", ("modes", "cut_the_wire", "defuse_wire"), "",
         ))
-        context.custom_data["cut_wire_detonate"] = str(self.app.config.get(
-            "modes", "cut_the_wire", "detonate_wire", default="",
+        context.custom_data["cut_wire_detonate"] = str(_ctw(
+            "cut_wire_detonate", ("modes", "cut_the_wire", "detonate_wire"), "",
         ))
 
         self.app.selected_mode = mode

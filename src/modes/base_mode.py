@@ -13,8 +13,10 @@ from typing import Any, Optional
 class SetupOptionType(Enum):
     """Type of setup option for UI rendering."""
 
-    RANGE = "range"      # Numeric value with min/max (e.g. timer, digits)
-    CODE_INPUT = "code"  # Direct digit input (e.g. set code)
+    RANGE = "range"       # Numeric stepper (timer, digits, penalty)
+    CODE_INPUT = "code"   # Digit-only text input (set code)
+    SELECT = "select"     # Dropdown from a fixed list of choices
+    TEXT = "text"         # Free text input (hint)
 
 
 @dataclass
@@ -28,9 +30,10 @@ class SetupOption:
         default: Default value.
         value: Current value (set during setup).
         min_val: Minimum value for RANGE type.
-        max_val: Maximum value for RANGE type.
+        max_val: Maximum value for RANGE type; also maxlength for TEXT type.
         step: Small step for left/right navigation.
         large_step: Large step for +/- keys.
+        choices: Ordered list of allowed values for SELECT type.
     """
 
     key: str
@@ -42,6 +45,7 @@ class SetupOption:
     max_val: int = 9999
     step: int = 1
     large_step: int = 10
+    choices: list = field(default_factory=list)
 
     def __post_init__(self) -> None:
         """Set value to default if not explicitly provided."""
