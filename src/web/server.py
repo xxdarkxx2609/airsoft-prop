@@ -915,6 +915,13 @@ def create_app(
                 "usb_key_cracker": {
                     "crack_interval": config.get("modes", "usb_key_cracker", "crack_interval", default=2.5),
                 },
+                "cut_the_wire": {
+                    "penalty_base_seconds": config.get("modes", "cut_the_wire", "penalty_base_seconds", default=60),
+                    "penalty_multiplier": config.get("modes", "cut_the_wire", "penalty_multiplier", default=2.0),
+                    "hint": config.get("modes", "cut_the_wire", "hint", default=""),
+                    "defuse_wire": config.get("modes", "cut_the_wire", "defuse_wire", default=""),
+                    "detonate_wire": config.get("modes", "cut_the_wire", "detonate_wire", default=""),
+                },
             },
             "audio": {
                 "volume": config.get("audio", "volume", default=0.8),

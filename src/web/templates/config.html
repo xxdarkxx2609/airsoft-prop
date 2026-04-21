@@ -86,6 +86,46 @@
         <label for="crack-interval">Crack Interval <span class="label-hint">(seconds per digit)</span></label>
         <input type="number" id="crack-interval" data-key="modes.usb_key_cracker.crack_interval" min="0.5" max="30" step="0.5">
     </div>
+
+    <h3 class="panel-subtitle">Cut the Wire</h3>
+    <div class="form-group">
+        <label for="ctw-defuse-wire">Defuse Wire <span class="label-hint">(empty = random each game)</span></label>
+        <select id="ctw-defuse-wire" data-key="modes.cut_the_wire.defuse_wire">
+            <option value="">Random</option>
+            <option value="Green">Green</option>
+            <option value="Blue">Blue</option>
+            <option value="White">White</option>
+            <option value="Yellow">Yellow</option>
+            <option value="Red">Red</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="ctw-detonate-wire">Detonate Wire <span class="label-hint">(empty = random each game)</span></label>
+        <select id="ctw-detonate-wire" data-key="modes.cut_the_wire.detonate_wire">
+            <option value="">Random</option>
+            <option value="Green">Green</option>
+            <option value="Blue">Blue</option>
+            <option value="White">White</option>
+            <option value="Yellow">Yellow</option>
+            <option value="Red">Red</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="ctw-penalty-base">Penalty Base <span class="label-hint">(seconds, 1st wrong cut)</span></label>
+        <div class="stepper" data-stepper>
+            <button class="stepper-btn" type="button" data-step="dec">−</button>
+            <input type="number" id="ctw-penalty-base" data-key="modes.cut_the_wire.penalty_base_seconds" min="5" max="600" step="5" data-large-step="60">
+            <button class="stepper-btn" type="button" data-step="inc">+</button>
+        </div>
+    </div>
+    <div class="form-group">
+        <label for="ctw-penalty-mult">Penalty Multiplier <span class="label-hint">(per subsequent wrong cut)</span></label>
+        <input type="number" id="ctw-penalty-mult" data-key="modes.cut_the_wire.penalty_multiplier" min="1" max="10" step="0.1">
+    </div>
+    <div class="form-group">
+        <label for="ctw-hint">LCD Hint <span class="label-hint">(shown on display — max 20 chars, empty = no hint)</span></label>
+        <input type="text" id="ctw-hint" data-key="modes.cut_the_wire.hint" maxlength="20" placeholder="e.g. NOT Yellow">
+    </div>
 </div>
 
 <!-- Audio & Display -->

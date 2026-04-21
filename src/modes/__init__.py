@@ -19,7 +19,7 @@ from src.utils.paths import get_project_root
 # Known mode modules — used as fallback in frozen (PyInstaller) builds
 # where pkgutil.iter_modules cannot scan the filesystem.
 # Update this list when adding new game modes.
-_KNOWN_MODES = ["random_code", "set_code", "random_code_plus", "set_code_plus", "usb_key_cracker"]
+_KNOWN_MODES = ["random_code", "set_code", "random_code_plus", "set_code_plus", "usb_key_cracker", "cut_the_wire"]
 
 
 def _extract_modes(module: object) -> list[Type[BaseMode]]:

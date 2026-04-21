@@ -57,7 +57,7 @@ function renderGameState(data) {
     armedStrip.style.display = isArmed ? "" : "none";
 
     const modeName = document.getElementById("armed-mode-name");
-    if (modeName) modeName.textContent = data.mode_name || data.mode || "";
+    if (modeName) modeName.textContent = (data.armed && data.armed.mode) || "";
 
     if (!isArmed) {
         clearInterval(_countdownInterval);
@@ -65,9 +65,10 @@ function renderGameState(data) {
         return;
     }
 
-    const snapshotTs = (data.snapshot_ts || Date.now() / 1000) * 1000;
-    const remainingAtSnapshot = data.remaining_seconds || 0;
-    const total = data.total_seconds || remainingAtSnapshot || 1;
+    const armed = data.armed || {};
+    const snapshotTs = (armed.snapshot_ts || Date.now() / 1000) * 1000;
+    const remainingAtSnapshot = armed.remaining_seconds || 0;
+    const total = armed.total_seconds || remainingAtSnapshot || 1;
 
     function updateCountdown() {
         const elapsed = (Date.now() - snapshotTs) / 1000;

@@ -13,14 +13,21 @@ font rendered into an off-screen surface and sampled to the pixel grid.
 Keyboard events from the pygame window are collected during ``flush()``
 and placed into an external ``queue.Queue`` shared with ``MockInput``.
 Closing the window signals shutdown via a provided callback.
+
+When a ``MockWires`` instance is attached via ``set_wires()``, a wire
+control panel is rendered to the right of the LCD. Clicking a wire button
+toggles its cut/intact state.
 """
 
 import queue
 import sys
-from typing import Callable, Optional
+from typing import TYPE_CHECKING, Callable, Optional
 
 from src.hal.base import DisplayBase
 from src.utils.logger import get_logger
+
+if TYPE_CHECKING:
+    from src.hal.wires_mock import MockWires
 
 logger = get_logger(__name__)
 
@@ -57,6 +64,24 @@ COLOR_PIXEL_OFF = (0, 34, 0)         # Unlit LCD pixel (visible dot matrix)
 COLOR_PIXEL_ON_DIM = (10, 35, 10)    # Lit pixel when backlight is off
 COLOR_PIXEL_OFF_DIM = (0, 8, 0)      # Unlit pixel when backlight is off
 COLOR_BEZEL = (30, 30, 45)           # LCD bezel / frame border
+
+# ---------------------------------------------------------------------------
+# Wire panel constants
+# ---------------------------------------------------------------------------
+
+PANEL_W: int = 140                   # Width of the wire control panel
+PANEL_GAP: int = 12                  # Gap between LCD area and panel
+
+# Wire colours rendered on the buttons (R, G, B)
+_WIRE_BUTTON_COLORS: dict[str, tuple[int, int, int]] = {
+    "Green":  (0, 180, 60),
+    "Blue":   (30, 100, 220),
+    "White":  (200, 200, 200),
+    "Yellow": (210, 180, 0),
+    "Red":    (200, 40, 40),
+}
+_WIRE_BTN_H: int = 34                # Button height in screen pixels
+_WIRE_BTN_GAP: int = 8              # Vertical gap between buttons
 
 # ---------------------------------------------------------------------------
 # Key mapping: pygame key codes → app key strings
@@ -144,9 +169,19 @@ class PygameDisplay(DisplayBase):
 
         self._screen: Optional[object] = None  # pygame.Surface
         self._font: Optional[object] = None    # pygame.font.Font (lazy)
+        self._panel_font: Optional[object] = None  # pygame.font.Font for wire panel
         self._keymap: dict[int, str] = {}
         self._display_rect: Optional[tuple[int, int, int, int]] = None
         self._initialized: bool = False
+
+        # Hold-repeat state: emit synthetic enter repeats while Enter is held.
+        self._enter_held: bool = False
+        self._enter_repeat_due: float = 0.0
+
+        # Wire control panel — populated via set_wires()
+        self._wires: Optional["MockWires"] = None
+        self._wire_btn_rects: list[tuple[str, tuple[int, int, int, int]]] = []
+        self._prev_wire_snapshot: str = ""
 
     # ------------------------------------------------------------------
     # DisplayBase interface
@@ -169,6 +204,10 @@ class PygameDisplay(DisplayBase):
                 # Only init the display subsystem if pygame is already running.
                 pygame.display.init()
                 pygame.font.init()
+
+            # Disable pygame's built-in key repeat; we handle Enter repeat manually
+            # so it doesn't flood the queue and cause duplicate inputs on other keys.
+            pygame.key.set_repeat(0, 0)
 
             self._keymap = _build_keymap()
             self._create_window()
@@ -249,6 +288,16 @@ class PygameDisplay(DisplayBase):
             self._buffer[i] = list(padded)
         self.flush()
 
+    def set_wires(self, wires: "MockWires") -> None:
+        """Attach a MockWires instance to enable the wire control panel.
+
+        Must be called before ``init()`` so the window is sized correctly.
+
+        Args:
+            wires: The MockWires instance to control.
+        """
+        self._wires = wires
+
     def shutdown(self, clear_display: bool = True) -> None:
         """Close the pygame window and clean up.
 
@@ -271,9 +320,11 @@ class PygameDisplay(DisplayBase):
         self._poll_events()
 
         snapshot = self._snapshot()
-        if snapshot == self._prev_snapshot:
+        wire_snapshot = self._wire_snapshot()
+        if snapshot == self._prev_snapshot and wire_snapshot == self._prev_wire_snapshot:
             return
         self._prev_snapshot = snapshot
+        self._prev_wire_snapshot = wire_snapshot
         self._render()
 
     # ------------------------------------------------------------------
@@ -281,16 +332,25 @@ class PygameDisplay(DisplayBase):
     # ------------------------------------------------------------------
 
     def _create_window(self) -> None:
-        """Create the pygame window sized to fit the LCD."""
+        """Create the pygame window sized to fit the LCD and optional wire panel."""
         lcd_w = self.COLS * CELL_W - CELL_GAP
         lcd_h = self.ROWS * CELL_H - CELL_GAP
-        win_w = lcd_w + 2 * PADDING
-        win_h = lcd_h + 2 * PADDING
 
-        self._display_rect = (PADDING, PADDING, lcd_w, lcd_h)
+        if self._wires is not None:
+            n = len(self._wires.get_wire_states())
+            panel_h = 26 + n * (_WIRE_BTN_H + _WIRE_BTN_GAP) - _WIRE_BTN_GAP + 20
+            content_h = max(lcd_h, panel_h)
+            win_w = lcd_w + PANEL_GAP + PANEL_W + 2 * PADDING
+        else:
+            content_h = lcd_h
+            win_w = lcd_w + 2 * PADDING
+
+        win_h = content_h + 2 * PADDING
+        # Vertically centre the LCD within the (potentially taller) window
+        lcd_top = PADDING + (content_h - lcd_h) // 2
+        self._display_rect = (PADDING, lcd_top, lcd_w, lcd_h)
         self._screen = pygame.display.set_mode((win_w, win_h))
         pygame.display.set_caption("Airsoft Prop — LCD Mock")
-        # Render an initial blank frame.
         self._render()
 
     def _snapshot(self) -> str:
@@ -298,8 +358,17 @@ class PygameDisplay(DisplayBase):
         state = "1" if self._backlight else "0"
         return state + "".join("".join(row) for row in self._buffer)
 
+    def _wire_snapshot(self) -> str:
+        """Return a hashable snapshot of wire states (empty if no wires attached)."""
+        if self._wires is None:
+            return ""
+        return "".join(
+            "1" if intact else "0"
+            for intact in self._wires.get_wire_states().values()
+        )
+
     def _render(self) -> None:
-        """Redraw the entire LCD surface."""
+        """Redraw the entire window (LCD + optional wire panel)."""
         if self._screen is None or self._display_rect is None:
             return
 
@@ -322,7 +391,90 @@ class PygameDisplay(DisplayBase):
                 cell_y = py + row * CELL_H
                 self._draw_char(screen, ch, cell_x, cell_y)
 
+        if self._wires is not None:
+            panel_x = px + lcd_w + PANEL_GAP
+            win_h = screen.get_height()
+            self._render_wire_panel(screen, panel_x, PADDING, win_h - 2 * PADDING)
+
         pygame.display.flip()
+
+    def _render_wire_panel(
+        self,
+        screen: "pygame.Surface",
+        x: int,
+        y: int,
+        panel_h: int,
+    ) -> None:
+        """Draw the wire control panel.
+
+        Renders one clickable button per wire. Intact wires show their
+        colour; cut wires are shown dark with a strikethrough label.
+
+        Args:
+            screen: Target pygame surface.
+            x: Left edge of the panel in screen pixels.
+            y: Top edge of the panel in screen pixels.
+            panel_h: Available height (matches LCD height).
+        """
+        if self._wires is None:
+            return
+
+        font = self._get_panel_font()
+        wire_states = self._wires.get_wire_states()
+        wire_names = list(wire_states.keys())
+
+        # Panel title
+        title_surf = font.render("WIRES", True, (160, 160, 180))
+        screen.blit(title_surf, (x + (PANEL_W - title_surf.get_width()) // 2, y))
+        title_h = title_surf.get_height() + 6
+
+        self._wire_btn_rects = []
+        btn_y = y + title_h
+        for name in wire_names:
+            intact = wire_states[name]
+            base_color = _WIRE_BUTTON_COLORS.get(name, (120, 120, 120))
+            if intact:
+                btn_color = base_color
+                label_color = (10, 10, 10)
+                label = name
+            else:
+                # Dimmed when cut
+                btn_color = tuple(max(0, c // 4) for c in base_color)  # type: ignore[assignment]
+                label_color = (120, 120, 120)
+                label = f"{name} [CUT]"
+
+            rect = (x, btn_y, PANEL_W, _WIRE_BTN_H)
+            pygame.draw.rect(screen, btn_color, rect, border_radius=5)
+            if not intact:
+                # Draw a thin line through the button to emphasise cut state
+                mid_y = btn_y + _WIRE_BTN_H // 2
+                pygame.draw.line(screen, (180, 60, 60), (x + 4, mid_y), (x + PANEL_W - 4, mid_y), 2)
+
+            lbl_surf = font.render(label, True, label_color)
+            lx = x + (PANEL_W - lbl_surf.get_width()) // 2
+            ly = btn_y + (_WIRE_BTN_H - lbl_surf.get_height()) // 2
+            screen.blit(lbl_surf, (lx, ly))
+
+            self._wire_btn_rects.append((name, rect))
+            btn_y += _WIRE_BTN_H + _WIRE_BTN_GAP
+
+        # Footer hint
+        hint_surf = font.render("click to toggle", True, (80, 80, 100))
+        screen.blit(hint_surf, (x + (PANEL_W - hint_surf.get_width()) // 2, y + panel_h - hint_surf.get_height()))
+
+    def _get_panel_font(self) -> "pygame.font.Font":
+        """Return a small font for the wire panel labels."""
+        if self._panel_font is not None:
+            return self._panel_font  # type: ignore[return-value]
+        for name in ("Segoe UI", "Arial", "Helvetica", "DejaVu Sans", ""):
+            try:
+                f = pygame.font.SysFont(name, 13) if name else pygame.font.Font(None, 15)
+                self._panel_font = f
+                return f
+            except Exception:
+                continue
+        self._panel_font = pygame.font.Font(None, 15)
+        return self._panel_font  # type: ignore[return-value]
 
     def _get_font(self) -> "pygame.font.Font":
         """Return the cached monospace font used for ASCII character rendering.
@@ -477,10 +629,16 @@ class PygameDisplay(DisplayBase):
         off_y = max(0, (cell_h - gh) // 2)
         screen.blit(glyph, (x + off_x, y + off_y))
 
+    # Interval for synthetic Enter repeats while the key is held.
+    # Must be shorter than HOLD_TIMEOUT (0.6 s) so the planting screen
+    # never times out, but long enough that normal typing never double-fires.
+    _ENTER_REPEAT_INTERVAL: float = 0.4
+
     def _poll_events(self) -> None:
-        """Process pygame events: quit signals and key presses."""
+        """Process pygame events: quit signals, key presses, and wire clicks."""
         if not _HAS_PYGAME:
             return
+        import time as _time
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 logger.info("PygameDisplay: window closed — requesting shutdown")
@@ -494,3 +652,37 @@ class PygameDisplay(DisplayBase):
                 if key is not None:
                     self._key_queue.put(key)
                     logger.debug("PygameDisplay key: %s", key)
+                if key == "enter":
+                    self._enter_held = True
+                    self._enter_repeat_due = _time.monotonic() + self._ENTER_REPEAT_INTERVAL
+            elif event.type == pygame.KEYUP:
+                key = self._keymap.get(event.key)
+                if key == "enter":
+                    self._enter_held = False
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                self._handle_wire_click(event.pos)
+
+        # Emit synthetic Enter repeats while the key is physically held.
+        if self._enter_held:
+            now = _time.monotonic()
+            if now >= self._enter_repeat_due:
+                self._key_queue.put("enter")
+                logger.debug("PygameDisplay key repeat: enter")
+                self._enter_repeat_due = now + self._ENTER_REPEAT_INTERVAL
+
+    def _handle_wire_click(self, pos: tuple[int, int]) -> None:
+        """Toggle a wire when its button is clicked.
+
+        Args:
+            pos: Mouse position (x, y) in screen pixels.
+        """
+        if self._wires is None:
+            return
+        mx, my = pos
+        for name, (bx, by, bw, bh) in self._wire_btn_rects:
+            if bx <= mx < bx + bw and by <= my < by + bh:
+                self._wires.toggle_wire(name)
+                logger.debug("PygameDisplay: wire '%s' toggled via click", name)
+                # Force immediate redraw
+                self._prev_wire_snapshot = ""
+                break

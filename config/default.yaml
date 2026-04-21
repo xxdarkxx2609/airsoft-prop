@@ -45,3 +45,9 @@ modes:
     max_code_length: 10
   usb_key_cracker:
     crack_interval: 2.5
+  cut_the_wire:
+    penalty_base_seconds: 60
+    penalty_multiplier: 2.0
+    hint: ""
+    defuse_wire: ""
+    detonate_wire: ""

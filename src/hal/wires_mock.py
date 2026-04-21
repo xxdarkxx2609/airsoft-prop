@@ -1,38 +1,46 @@
 """Mock wires implementation for desktop testing.
 
-Simulates three GPIO wires (defuse, explode, halve) with software-togglable
-states. All wires start as intact (True). States can be changed via the
-``cut_wire()`` and ``reset_wire()`` methods.
+Simulates GPIO wires with software-togglable states. Wire names and
+their initial (intact) states are loaded from ``gpio.wires`` in
+hardware.yaml, matching the GpioWires implementation exactly.
 """
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from src.hal.base import WiresBase
 from src.utils.logger import get_logger
 
+if TYPE_CHECKING:
+    from src.utils.config import Config
+
 logger = get_logger(__name__)
 
-# Valid wire names matching the GPIO wire configuration
-WIRE_NAMES: tuple[str, ...] = ("defuse", "explode", "halve")
+_DEFAULT_WIRE_NAMES: tuple[str, ...] = ("Green", "Blue", "White", "Yellow", "Red")
 
 
 class MockWires(WiresBase):
     """Software-simulated wires for desktop testing.
 
-    Three wires (defuse, explode, halve) are maintained in an internal
-    dictionary.  True means the wire is intact (inserted), False means
-    the wire has been cut (pulled).
-
-    State can be changed programmatically via ``cut_wire()``,
-    ``reset_wire()``, and ``toggle_wire()`` for integration testing or
-    manual desktop use.
+    Wire names are loaded from hardware config. All wires start intact
+    (True). States can be changed via ``cut_wire()``, ``reset_wire()``,
+    and ``toggle_wire()`` for integration testing.
     """
 
-    def __init__(self) -> None:
-        """Initialize all wires as intact."""
-        self._states: dict[str, bool] = {
-            "defuse": True,
-            "explode": True,
-            "halve": True,
-        }
+    def __init__(self, config: Config | None = None) -> None:
+        """Initialize all wires as intact.
+
+        Args:
+            config: Application configuration. If None, uses default names.
+        """
+        if config is not None:
+            pins_cfg = config.get("gpio", "wires", default={})
+            names = list(pins_cfg.keys()) if pins_cfg else list(_DEFAULT_WIRE_NAMES)
+        else:
+            names = list(_DEFAULT_WIRE_NAMES)
+        self._wire_names: tuple[str, ...] = tuple(names)
+        self._states: dict[str, bool] = {name: True for name in self._wire_names}
 
     def init(self) -> None:
         """Initialize the mock wire detection system."""
@@ -42,16 +50,15 @@ class MockWires(WiresBase):
         )
 
     def get_wire_states(self) -> dict[str, bool]:
-        """Return the current state of all three wires.
+        """Return the current state of all wires.
 
         Returns:
-            Dict with keys 'defuse', 'explode', 'halve' and boolean
-            values (True = intact, False = cut).
+            Dict mapping color name to boolean (True = intact, False = cut).
         """
         return dict(self._states)
 
     def all_wires_intact(self) -> bool:
-        """Check whether all three wires are currently intact.
+        """Check whether all wires are currently intact.
 
         Returns:
             True if every wire is intact.
@@ -60,7 +67,7 @@ class MockWires(WiresBase):
 
     def shutdown(self) -> None:
         """Clean up mock wires (reset to intact)."""
-        self._states = {name: True for name in WIRE_NAMES}
+        self._states = {name: True for name in self._wire_names}
         logger.info("MockWires shut down (all wires reset to intact)")
 
     # ------------------------------------------------------------------
@@ -71,7 +78,7 @@ class MockWires(WiresBase):
         """Simulate cutting (pulling) a wire.
 
         Args:
-            name: Wire name ('defuse', 'explode', or 'halve').
+            name: Wire color name.
 
         Raises:
             ValueError: If the wire name is invalid.
@@ -87,7 +94,7 @@ class MockWires(WiresBase):
         """Reset a wire back to the intact state.
 
         Args:
-            name: Wire name ('defuse', 'explode', or 'halve').
+            name: Wire color name.
 
         Raises:
             ValueError: If the wire name is invalid.
@@ -103,7 +110,7 @@ class MockWires(WiresBase):
         """Toggle a wire between intact and cut.
 
         Args:
-            name: Wire name ('defuse', 'explode', or 'halve').
+            name: Wire color name.
 
         Raises:
             ValueError: If the wire name is invalid.
@@ -115,21 +122,20 @@ class MockWires(WiresBase):
 
     def reset_all(self) -> None:
         """Reset all wires to the intact state."""
-        self._states = {name: True for name in WIRE_NAMES}
+        self._states = {name: True for name in self._wire_names}
         logger.info("MockWires: all wires reset to intact")
 
-    @staticmethod
-    def _validate_name(name: str) -> None:
-        """Validate that a wire name is one of the known wires.
+    def _validate_name(self, name: str) -> None:
+        """Validate that a wire name is known.
 
         Args:
             name: Wire name to validate.
 
         Raises:
-            ValueError: If the name is not in WIRE_NAMES.
+            ValueError: If the name is not in the known wires.
         """
-        if name not in WIRE_NAMES:
+        if name not in self._states:
             raise ValueError(
                 f"Unknown wire name '{name}'. "
-                f"Valid names: {', '.join(WIRE_NAMES)}"
+                f"Valid names: {', '.join(self._wire_names)}"
             )

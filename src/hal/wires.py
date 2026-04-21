@@ -1,12 +1,12 @@
 """GPIO wire detection for Raspberry Pi.
 
-Reads three physical wires connected to GPIO pins via gpiozero.
+Reads physical wires connected to GPIO pins via gpiozero.
 Each wire has an external 10k pull-down resistor:
   - Wire inserted (connecting 3.3V to GPIO) = HIGH = intact
   - Wire pulled / cut = LOW (pull-down wins) = cut
 
 Pin assignments are read from ``config/hardware.yaml`` under
-``gpio.wires``.
+``gpio.wires`` as a mapping of color name to BCM pin number.
 """
 
 from __future__ import annotations
@@ -23,29 +23,26 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-# Wire names matching the rest of the application and the mock.
-WIRE_NAMES: tuple[str, ...] = ("defuse", "explode", "halve")
-
 
 class GpioWires(WiresBase):
     """Read physical wire states via GPIO pins on Raspberry Pi.
 
     Uses ``gpiozero.InputDevice`` with ``pull_up=False`` because the
-    hardware has external 10k pull-down resistors.
+    hardware has external 10k pull-down resistors. Wire names and pin
+    assignments are loaded from ``gpio.wires`` in hardware.yaml.
     """
 
     def __init__(self, config: Config) -> None:
         """Prepare pin configuration without touching GPIO yet.
 
         Args:
-            config: Application configuration (reads ``gpio.wires.*``).
+            config: Application configuration (reads ``gpio.wires``).
         """
         self._config = config
         self._devices: dict[str, GpioInputDevice] = {}
+        pins_cfg = config.get("gpio", "wires", default={})
         self._pins: dict[str, int] = {
-            "defuse": int(self._config.get("gpio", "wires", "wire_defuse", default=17)),
-            "explode": int(self._config.get("gpio", "wires", "wire_explode", default=27)),
-            "halve": int(self._config.get("gpio", "wires", "wire_halve", default=22)),
+            name: int(pin) for name, pin in pins_cfg.items()
         }
 
     def init(self) -> None:
@@ -65,18 +62,16 @@ class GpioWires(WiresBase):
         )
 
     def get_wire_states(self) -> dict[str, bool]:
-        """Read the current state of all three wires.
+        """Read the current state of all wires.
 
         Returns:
-            Dict with keys 'defuse', 'explode', 'halve' and boolean
-            values (True = intact / HIGH, False = cut / LOW).
+            Dict mapping color name to boolean (True = intact, False = cut).
         """
         states: dict[str, bool] = {}
-        for name in WIRE_NAMES:
+        for name in self._pins:
             device = self._devices.get(name)
             if device is not None:
                 try:
-                    # value == 1 -> wire intact (HIGH), value == 0 -> wire cut (LOW)
                     states[name] = bool(device.value)
                 except Exception:
                     states[name] = False
@@ -85,7 +80,7 @@ class GpioWires(WiresBase):
         return states
 
     def all_wires_intact(self) -> bool:
-        """Check whether all three wires are currently intact.
+        """Check whether all wires are currently intact.
 
         Returns:
             True if every wire reads HIGH.
@@ -94,7 +89,7 @@ class GpioWires(WiresBase):
 
     def shutdown(self) -> None:
         """Close all GPIO devices."""
-        for name, device in self._devices.items():
+        for device in self._devices.values():
             try:
                 device.close()
             except Exception:

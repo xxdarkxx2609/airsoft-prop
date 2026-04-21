@@ -158,15 +158,19 @@ class App:
         from src.hal.wires_mock import MockWires
         from src.hal.led_mock import MockLed
 
+        self.wires = MockWires()
+
         try:
             import pygame  # noqa: F401  (availability check only)
             from src.hal.display_mock_pygame import PygameDisplay
 
             shared_key_queue: _queue.Queue[str] = _queue.Queue()
-            self.display = PygameDisplay(
+            pygame_display = PygameDisplay(
                 key_queue=shared_key_queue,
                 on_quit=self.shutdown,
             )
+            pygame_display.set_wires(self.wires)
+            self.display = pygame_display
             self.input = MockInput(external_key_queue=shared_key_queue)
             logger.info("Mock HAL: using PygameDisplay")
         except ImportError:
@@ -176,7 +180,6 @@ class App:
             logger.info("Mock HAL: pygame not available, using MockDisplay (terminal)")
 
         self.audio = MockAudio()
-        self.wires = MockWires()
         self.battery = NoBattery()
         self.usb_detector = MockUsbDetector()
         self.led = MockLed()

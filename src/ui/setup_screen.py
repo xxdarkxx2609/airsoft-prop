@@ -418,6 +418,21 @@ class SetupScreen(BaseScreen):
         context.custom_data["crack_interval"] = self.app.config.get(
             "modes", "usb_key_cracker", "crack_interval", default=2.5,
         )
+        context.custom_data["cut_wire_penalty_base"] = float(self.app.config.get(
+            "modes", "cut_the_wire", "penalty_base_seconds", default=60,
+        ))
+        context.custom_data["cut_wire_penalty_multiplier"] = float(self.app.config.get(
+            "modes", "cut_the_wire", "penalty_multiplier", default=2.0,
+        ))
+        context.custom_data["cut_wire_hint"] = str(self.app.config.get(
+            "modes", "cut_the_wire", "hint", default="",
+        ))[:20]
+        context.custom_data["cut_wire_defuse"] = str(self.app.config.get(
+            "modes", "cut_the_wire", "defuse_wire", default="",
+        ))
+        context.custom_data["cut_wire_detonate"] = str(self.app.config.get(
+            "modes", "cut_the_wire", "detonate_wire", default="",
+        ))
 
         # Attach context to the app and notify the mode
         self.app.game_context = context

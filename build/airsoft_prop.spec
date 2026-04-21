@@ -29,6 +29,7 @@ a = Analysis(
         "src.modes.random_code_plus",
         "src.modes.set_code_plus",
         "src.modes.usb_key_cracker",
+        "src.modes.cut_the_wire",
         # pygame internals
         "pygame.mixer",
         "pygame.display",
