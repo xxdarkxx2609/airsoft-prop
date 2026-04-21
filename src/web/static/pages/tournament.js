@@ -94,12 +94,12 @@ function renderModeSettings(moduleKey, currentSettings) {
 
             html += `<div class="form-group">
                 <label for="${id}">${opt.label}${labelSuffix}</label>
-                <div data-stepper>
-                    <button type="button" data-step="dec">−</button>
+                <div class="stepper" data-stepper>
+                    <button class="stepper-btn" type="button" data-step="dec">−</button>
                     <input type="number" id="${id}" data-mode-key="${opt.key}"
                            value="${val}" min="${opt.min ?? ""}" max="${opt.max ?? ""}"
                            step="${opt.step ?? 1}" data-large-step="${opt.large_step ?? 0}">
-                    <button type="button" data-step="inc">+</button>
+                    <button class="stepper-btn" type="button" data-step="inc">+</button>
                 </div>
             </div>`;
         } else if (opt.type === "code") {
