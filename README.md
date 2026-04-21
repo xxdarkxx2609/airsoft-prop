@@ -40,7 +40,7 @@ Dieses Projekt ist ein **funktionsloses Requisit** (Prop) für Airsoft- und Mils
 
 ## Features
 
-- **5 Game Modes**: Random Code, Set Code, Random Code+, Set Code+, USB Key Cracker
+- **6 Game Modes**: Random Code, Set Code, Random Code+, Set Code+, USB Key Cracker, Cut the Wire
 - **20×4 LCD Display** with custom icons (WiFi, battery, lock)
 - **USB Numpad** for intuitive input
 - **Audio + LED feedback**: beeps with synchronized LED, planted/defused/explosion sounds, looping siren on detonation
@@ -62,6 +62,7 @@ Dieses Projekt ist ein **funktionsloses Requisit** (Prop) für Airsoft- und Mils
 | USB Numpad | Player input | ~€9 |
 | USB Speaker | Portable audio output (small, 2–5W) | ~€13 |
 | LED + 330Ω Resistor | Beep indicator LED (optional) | ~€1 |
+| 5× Colored Wires + 5× 10kΩ Resistors | Cut the Wire game mode (optional) | ~€2 |
 | Micro-USB OTG Adapter | Connect USB numpad to Pi Zero | ~€4 |
 | Micro-SD Card (16 GB+) | OS storage | ~€11 |
 | PiSugar S UPS HAT (optional) | Battery (1200 mAh, USB-C charging, ~2–3 h runtime) | ~€35 |
@@ -88,6 +89,19 @@ USB Peripherals (via USB Hub + Micro-USB OTG):
 
 Beep Indicator LED (optional):
   Pi Pin 18 (GPIO24)     ──→  Resistor (330Ω) ──→ LED ──→ GND
+
+Cut the Wire — GPIO Wires (optional, for "Cut the Wire" game mode):
+  All 5 wires share a common GND on Pi Pin 39 (GND).
+  Each wire: 3.3V rail ──→ Wire ──→ GPIO pin + external 10kΩ pull-down to GND.
+  Wire inserted (bridging 3.3V to GPIO) = HIGH = intact.
+  Wire pulled / cut = LOW (pull-down wins) = cut.
+
+  Pi Pin 29  (GPIO5)   ──→  Green wire
+  Pi Pin 31  (GPIO6)   ──→  Blue wire
+  Pi Pin 33  (GPIO13)  ──→  White wire
+  Pi Pin 35  (GPIO19)  ──→  Yellow wire
+  Pi Pin 37  (GPIO26)  ──→  Red wire
+  Pi Pin 39  (GND)     ──→  Shared GND for all 5 wires
 ```
 
 ---
@@ -377,11 +391,14 @@ Harder variant of Set Code. Each digit is checked immediately, but the code rema
 
 > **Penalty seconds** can be configured in the web interface under Settings → Plus Modes (default: 10 s per wrong digit).
 
-### Cut the Wire *(draft)*
+### Cut the Wire
 
-> This mode is currently in draft status and not available in the menu. It will be released in a future update.
+Five physical wires are connected to GPIO pins. One wire is the defuse wire (randomly assigned each round). Cut the correct wire to defuse — cutting the wrong one detonates immediately.
 
-Three physical wires have randomly assigned roles (Defuse / Explode / Halve Timer). Cut the right one.
+- **Setup**: Timer (00:30 – 99:59)
+- **Planting**: enter a random activation code to arm
+- **Gameplay**: cut one of the five wires; correct wire = defused, wrong wire = instant detonation
+- **Hardware**: requires 5 GPIO wires wired per the Wiring section above; wire-to-color mapping configured in `config/hardware.yaml` under `gpio.wires`
 
 ---
 
