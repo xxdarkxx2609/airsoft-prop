@@ -152,7 +152,6 @@ class App:
         import queue as _queue
 
         from src.hal.audio_mock import MockAudio
-        from src.hal.battery_none import NoBattery
         from src.hal.input_mock import MockInput
         from src.hal.usb_detector_mock import MockUsbDetector
         from src.hal.wires_mock import MockWires
@@ -180,7 +179,13 @@ class App:
             logger.info("Mock HAL: pygame not available, using MockDisplay (terminal)")
 
         self.audio = MockAudio()
-        self.battery = NoBattery()
+        battery_type = self.config.get_hal_type("battery")
+        if battery_type == "mock":
+            from src.hal.battery_mock import MockBattery
+            self.battery = MockBattery()
+        else:
+            from src.hal.battery_none import NoBattery
+            self.battery = NoBattery()
         self.usb_detector = MockUsbDetector()
         self.led = MockLed()
         logger.info("Mock HAL initialized")

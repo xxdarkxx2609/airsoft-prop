@@ -129,9 +129,9 @@ class MenuScreen(BaseScreen):
         battery_level = self._get_battery_level_cached()
         if battery_level is not None:
             bat_icon = chr(CHAR_BATTERY_FULL if battery_level > 20 else CHAR_BATTERY_LOW)
-            status_bar = f"* Status  / Upd {bat_icon}{wifi_icon}"
+            status_bar = f"* Status  / Upd {bat_icon} {wifi_icon}"
         else:
-            status_bar = f"* Status  / Upd  {wifi_icon}"
+            status_bar = f"* Status  / Upd   {wifi_icon}"
         display.write_line(3, pad_text(status_bar))
 
     # -- helpers --------------------------------------------------------------
