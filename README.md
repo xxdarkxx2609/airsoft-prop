@@ -106,21 +106,35 @@ Cut the Wire — GPIO Wires (optional, for "Cut the Wire" game mode):
 
 ---
 
-## Battery (PiSugar S)
+## Battery (PiSugar)
 
-The prop uses a **PiSugar S** UPS HAT for portable power. It attaches underneath the Pi Zero via pogo pins — no soldering required, and the GPIO header remains free for other connections.
+The prop supports **PiSugar** UPS HATs for portable power. They attach underneath the Pi Zero via pogo pins — no soldering required, and the GPIO header remains free for other connections.
 
-The PiSugar S is chosen over the PiSugar 3 because it can send a Power-ON signal to the Pi via GPIO3 — allowing the device to boot without pressing a hardware button. This Power-ON signal happens before the Linux kernel initializes I2C, so there is no conflict with the LCD display which uses GPIO3 as SCL.
+> **No fully supported model exists yet.** All known PiSugar variants have at least one limitation on this hardware. PiSugar 2/3 are supported but not recommended — see known issues below.
 
-| Spec | Value |
-|------|-------|
-| Battery | 1200 mAh LiPo (3.7 V) |
-| Output | 5 V / 2.4 A |
-| Charging | USB-C (charges while running) |
-| Runtime | ~2–3 hours under load |
-| Features | Power-ON signal (GPIO3), RTC, soft shutdown |
+### PiSugar S
 
-**Setup on Raspberry Pi:**
+**Known limitations:**
+- The Power-ON signal uses GPIO3 (SCL), which conflicts with the I2C LCD display. The display is blocked and won't receive a Signal -> this could be solved by changing the GPIO Pins used for the Display.
+- Battery status is **not** readable via I2C — the software HAL cannot report charge level, voltage, or runtime.
+
+### PiSugar 2
+
+Supports I2C battery status readout, which means charge level and voltage are available in the software.
+
+**Known limitations:**
+- No Power-ON signal — the Pi cannot be booted by the battery board alone. A hardware button press or direct power-cycle is required to start the device.
+
+### PiSugar 3
+
+Same I2C battery status support as PiSugar 2.
+
+**Known limitations:**
+- No reliable Power-ON signal support — booting without a hardware button press is not possible.
+
+---
+
+**Setup on Raspberry Pi (PiSugar2/3 only!):**
 
 1. Install the PiSugar power manager daemon:
 
@@ -135,10 +149,10 @@ sudo ./pisugar-power-manager.sh
 3. Reboot and verify:
 
 ```bash
-i2cdetect -y 1       # LCD at 0x27 and PiSugar S at 0x57 must both be visible
+i2cdetect -y 1       # LCD at 0x27 and PiSugar at 0x57 must both be visible
 ```
 
-Battery information is shown in three places:
+Battery information is shown in three places (when I2C readout is available):
 
 - **LCD status screen** (press **8** in the menu) — charge level bar, voltage, estimated runtime
 - **LCD menu footer** — battery icon (full/low) next to the WiFi icon
