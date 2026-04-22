@@ -122,10 +122,12 @@
                 <svg class="nav-icon" aria-hidden="true"><use href="#icon-system"/></svg>
                 <span>System</span>
             </a>
+            {% if battery_available %}
             <a href="/battery" class="nav-link {% if active == 'battery' %}active{% endif %}" aria-current="{% if active == 'battery' %}page{% endif %}">
                 <svg class="nav-icon" aria-hidden="true"><use href="#icon-battery"/></svg>
                 <span>Battery</span>
             </a>
+            {% endif %}
             <a href="/logs" class="nav-link {% if active == 'logs' %}active{% endif %}" aria-current="{% if active == 'logs' %}page{% endif %}">
                 <svg class="nav-icon" aria-hidden="true"><use href="#icon-logs"/></svg>
                 <span>Logs</span>

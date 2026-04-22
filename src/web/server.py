@@ -161,6 +161,11 @@ def create_app(
             response.headers["Cache-Control"] = "no-store"
         return response
 
+    @app.context_processor
+    def inject_battery_available() -> dict:
+        bat = app.config.get("BATTERY")
+        return {"battery_available": bat is not None and bat.get_battery_level() is not None}
+
     # ------------------------------------------------------------------
     # Auth helpers
     # ------------------------------------------------------------------
@@ -513,6 +518,9 @@ def create_app(
     @require_auth_page
     def battery_page():
         """Battery information page."""
+        bat = app.config.get("BATTERY")
+        if bat is None or bat.get_battery_level() is None:
+            return redirect(url_for("system_page"))
         return render_template("battery.html", active="battery")
 
     @app.route("/logs")

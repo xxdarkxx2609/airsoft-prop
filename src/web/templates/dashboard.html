@@ -26,6 +26,7 @@
 <div class="stat-grid">
 
     <!-- Power -->
+    {% if battery_available %}
     <div class="panel stat-panel">
         <h2 class="panel-title">Power</h2>
         <div class="info-row">
@@ -38,6 +39,7 @@
             <span class="info-value" id="stat-charging">—</span>
         </div>
     </div>
+    {% endif %}
 
     <!-- Network -->
     <div class="panel stat-panel">
