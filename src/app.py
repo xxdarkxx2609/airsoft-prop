@@ -690,6 +690,86 @@ class App:
             self.config.get("game", "default_timer", default="?"),
             self.config.get("audio", "volume", default="?"),
         )
+        self._log_hardware_health()
+
+    def _log_hardware_health(self) -> None:
+        """Log Pi hardware health markers at startup.
+
+        Reads ``/proc/uptime`` (system age) and runs ``vcgencmd
+        get_throttled`` (sticky bits showing whether the previous
+        session experienced undervoltage or thermal throttling). If the
+        previous session ended with a brownout-induced reboot, the
+        throttle bits expose it on the next boot — even though prop.log
+        never got the chance to write it.
+
+        All operations are best-effort and silently skipped if the
+        relevant files / commands are missing (non-Pi systems).
+        """
+        # System uptime — distinguishes "Pi just rebooted" from
+        # "service restarted on a long-running Pi".
+        try:
+            with open("/proc/uptime", encoding="ascii") as f:
+                uptime_s = float(f.read().split()[0])
+            logger.info("System uptime: %.1f s (%.2f h)", uptime_s, uptime_s / 3600.0)
+        except (OSError, ValueError):
+            pass  # Non-Linux / unreadable — not a Pi.
+
+        # Pi throttle / undervoltage history (sticky bits).
+        # See https://www.raspberrypi.com/documentation/computers/os.html
+        # Key bits in the returned hex value:
+        #   0x1     under-voltage now
+        #   0x2     ARM frequency capped now
+        #   0x4     currently throttled
+        #   0x8     soft temp limit now
+        #   0x10000 under-voltage has occurred since boot
+        #   0x20000 ARM frequency cap has occurred
+        #   0x40000 throttling has occurred
+        #   0x80000 soft temp limit has occurred
+        import shutil
+        import subprocess
+        vcgencmd = shutil.which("vcgencmd")
+        if vcgencmd is None:
+            return
+        try:
+            result = subprocess.run(
+                [vcgencmd, "get_throttled"],
+                capture_output=True, text=True, timeout=2.0, check=False,
+            )
+            output = result.stdout.strip()
+        except (OSError, subprocess.SubprocessError) as exc:
+            logger.debug("vcgencmd get_throttled failed: %s", exc)
+            return
+
+        # Output format: "throttled=0x50005"
+        if "=" not in output:
+            return
+        try:
+            value = int(output.split("=", 1)[1], 16)
+        except ValueError:
+            return
+
+        flags: list[str] = []
+        if value & 0x1:       flags.append("UNDERVOLTAGE NOW")
+        if value & 0x2:       flags.append("ARM CAPPED NOW")
+        if value & 0x4:       flags.append("THROTTLED NOW")
+        if value & 0x8:       flags.append("SOFT TEMP LIMIT NOW")
+        if value & 0x10000:   flags.append("undervoltage occurred")
+        if value & 0x20000:   flags.append("arm cap occurred")
+        if value & 0x40000:   flags.append("throttling occurred")
+        if value & 0x80000:   flags.append("soft temp limit occurred")
+
+        if value == 0:
+            logger.info("Pi throttle status: 0x0 (clean)")
+        elif value & 0xF:
+            # Live problem right now — top priority signal.
+            logger.error(
+                "Pi throttle status: 0x%X — %s", value, ", ".join(flags),
+            )
+        else:
+            # Only sticky historical bits — previous session had trouble.
+            logger.warning(
+                "Pi throttle status: 0x%X — %s", value, ", ".join(flags),
+            )
 
     def shutdown(self, clear_display: bool = True) -> None:
         """Shut down all subsystems gracefully.

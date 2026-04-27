@@ -8,6 +8,7 @@ under the ``lcd`` section.
 
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING, Optional
 
 from RPLCD.i2c import CharLCD
@@ -19,6 +20,14 @@ if TYPE_CHECKING:
     from src.utils.config import Config
 
 logger = get_logger(__name__)
+
+# A normal 20-char I2C write to the PCF8574-backed HD44780 takes ~3-8 ms.
+# At 5 fps the whole frame budget is 200 ms, so any single row write that
+# crosses 100 ms means the I2C bus is starting to misbehave (clock
+# stretching, retries, or a wedged state from electrical noise on a
+# soldered board). Logging it lets us see the I2C lockup that explains
+# a "frozen LCD with Python still alive" symptom.
+_SLOW_WRITE_THRESHOLD_S: float = 0.1
 
 
 class LcdDisplay(DisplayBase):
@@ -164,17 +173,40 @@ class LcdDisplay(DisplayBase):
         This avoids redundant I2C traffic for rows whose content has
         not changed since the last flush, significantly reducing CPU
         load and improving responsiveness on the Pi Zero.
+
+        Each row write is timed; durations above
+        :data:`_SLOW_WRITE_THRESHOLD_S` are logged at WARNING. Any
+        non-OSError exception is also caught and logged so smbus2-style
+        ``RuntimeError`` on a wedged I2C bus does not crash the loop.
         """
         if self._lcd is None:
             return
         for row in range(self.ROWS):
             if not self._dirty[row]:
                 continue
+            start = time.monotonic()
             try:
                 self._lcd.cursor_pos = (row, 0)
                 self._lcd.write_string(self._buffer[row])
             except (OSError, IOError) as exc:
-                logger.warning("LcdDisplay.flush failed (row %d): %s", row, exc)
+                duration = time.monotonic() - start
+                logger.warning(
+                    "LcdDisplay.flush failed (row %d, %.0f ms): %s",
+                    row, duration * 1000.0, exc,
+                )
+            except Exception as exc:  # noqa: BLE001
+                duration = time.monotonic() - start
+                logger.warning(
+                    "LcdDisplay.flush unexpected error (row %d, %.0f ms): %s: %s",
+                    row, duration * 1000.0, type(exc).__name__, exc,
+                )
+            else:
+                duration = time.monotonic() - start
+                if duration > _SLOW_WRITE_THRESHOLD_S:
+                    logger.warning(
+                        "LcdDisplay.flush slow row %d: %.0f ms (I2C bus may be wedged)",
+                        row, duration * 1000.0,
+                    )
             self._dirty[row] = False
 
     def shutdown(self, clear_display: bool = True) -> None:
