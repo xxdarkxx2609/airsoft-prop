@@ -628,13 +628,25 @@ class App:
                     self.display.flush()
 
                     _consecutive_errors = 0
-                except Exception:
+                except (KeyboardInterrupt, SystemExit):
+                    # Let the outer try and/or signal handlers deal with these.
+                    raise
+                except BaseException:
+                    # BaseException (not just Exception) so MemoryError and
+                    # any odd library BaseException subclass are also logged.
                     _consecutive_errors += 1
                     logger.exception(
                         "Error in main loop (consecutive: %d/%d)",
                         _consecutive_errors,
                         _MAX_CONSECUTIVE_ERRORS,
                     )
+                    # Force-flush so the trace is on disk even if the very
+                    # next iteration crashes the process at the C level.
+                    for handler in logger.root.handlers:
+                        try:
+                            handler.flush()
+                        except Exception:  # noqa: BLE001
+                            pass
                     if _consecutive_errors >= _MAX_CONSECUTIVE_ERRORS:
                         logger.critical(
                             "Too many consecutive errors, shutting down",

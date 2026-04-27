@@ -44,6 +44,10 @@ class GpioWires(WiresBase):
         self._pins: dict[str, int] = {
             name: int(pin) for name, pin in pins_cfg.items()
         }
+        # Per-wire failure counter. Used to log only the first failure
+        # of a burst (avoids log spam if a flaky joint produces hundreds
+        # of bad reads per second). Resets on a successful read.
+        self._read_failures: dict[str, int] = {}
 
     def init(self) -> None:
         """Initialize GPIO InputDevice for each wire."""
@@ -64,18 +68,41 @@ class GpioWires(WiresBase):
     def get_wire_states(self) -> dict[str, bool]:
         """Read the current state of all wires.
 
+        On a hardware read error (e.g. flaky soldered joint, RPi.GPIO
+        raising ``RuntimeError``), the wire is reported as cut (False)
+        to preserve existing game-logic behavior, but the exception is
+        logged once per failure burst so that diagnostics are visible
+        in ``prop.log``. The counter resets the next time the wire
+        reads cleanly.
+
         Returns:
             Dict mapping color name to boolean (True = intact, False = cut).
         """
         states: dict[str, bool] = {}
         for name in self._pins:
             device = self._devices.get(name)
-            if device is not None:
-                try:
-                    states[name] = bool(device.value)
-                except Exception:
-                    states[name] = False
-            else:
+            if device is None:
+                states[name] = False
+                continue
+            try:
+                states[name] = bool(device.value)
+                if self._read_failures.get(name):
+                    logger.info(
+                        "Wire '%s' recovered after %d failed reads",
+                        name,
+                        self._read_failures[name],
+                    )
+                    self._read_failures[name] = 0
+            except Exception as exc:
+                count = self._read_failures.get(name, 0) + 1
+                self._read_failures[name] = count
+                if count == 1:
+                    logger.warning(
+                        "Wire '%s' GPIO read failed: %s: %s",
+                        name,
+                        type(exc).__name__,
+                        exc,
+                    )
                 states[name] = False
         return states
 

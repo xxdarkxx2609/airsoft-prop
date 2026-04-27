@@ -9,6 +9,7 @@ All modules should use:
     logger = get_logger(__name__)
 """
 
+import atexit
 import datetime
 import logging
 import sys
@@ -77,6 +78,28 @@ def _cleanup_old_logs(
             oldest.unlink()
         except OSError:
             pass  # Best-effort cleanup
+
+
+# ------------------------------------------------------------------
+# Flushing file handler
+# ------------------------------------------------------------------
+
+class _FlushingFileHandler(logging.FileHandler):
+    """FileHandler that flushes the stream after every record.
+
+    The default FileHandler buffers writes. If systemd SIGKILLs the
+    process (e.g. after TimeoutStopSec on a hang) the last log lines
+    never reach disk, leaving prop.log silent for the most interesting
+    moment. Flushing per record is cheap at this app's log volume and
+    guarantees the final entry is on disk before any kill.
+    """
+
+    def emit(self, record: logging.LogRecord) -> None:
+        super().emit(record)
+        try:
+            self.flush()
+        except Exception:  # noqa: BLE001 — never let logging break the app
+            pass
 
 
 # ------------------------------------------------------------------
@@ -203,7 +226,7 @@ def setup_logging(
         # Rotate previous session's log to a timestamped archive.
         _rotate_log_file(full_path, max_files)
 
-        file_handler = logging.FileHandler(str(full_path), encoding="utf-8")
+        file_handler = _FlushingFileHandler(str(full_path), encoding="utf-8")
         file_handler.setFormatter(formatter)
         root.addHandler(file_handler)
 
@@ -218,6 +241,10 @@ def setup_logging(
     # Install exception hooks.
     sys.excepthook = _uncaught_exception_handler
     threading.excepthook = _thread_exception_handler
+
+    # Belt and suspenders: ensure every handler is flushed and closed on
+    # interpreter shutdown. logging.shutdown is idempotent.
+    atexit.register(logging.shutdown)
 
     _initialized = True
 
