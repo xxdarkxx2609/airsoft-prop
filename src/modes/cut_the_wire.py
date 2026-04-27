@@ -76,6 +76,32 @@ def _build_wire_row(wire_states: dict[str, bool]) -> str:
     return "".join(parts)
 
 
+def _build_connection_row(wire_states: dict[str, bool]) -> str:
+    """Build pre-game connection-status row.
+
+    Connected wires show ``[+]`` (a stand-in for a checkmark — the
+    HD44780 ROM has no native checkmark glyph and all 8 custom slots
+    are already taken); disconnected wires show ``[<letter>]`` so the
+    missing colours stand out at a glance. Format: ``[G][+][W][+][R]``
+    — 15 chars for 5 wires.
+
+    Args:
+        wire_states: Mapping of colour name to intact state.
+
+    Returns:
+        Wire status string suitable for the InfoScreen.
+    """
+    parts: list[str] = []
+    for color in WIRE_COLORS:
+        if color not in wire_states:
+            continue
+        if wire_states[color]:
+            parts.append("[+]")
+        else:
+            parts.append(f"[{_COLOR_INITIAL.get(color, color[0])}]")
+    return "".join(parts)
+
+
 class CutTheWireMode(BaseMode):
     """Cut the Wire: pull the right wire before time runs out.
 
@@ -126,7 +152,7 @@ class CutTheWireMode(BaseMode):
             return None
 
         logger.info("CutTheWire: blocked start, wires not connected: %s", missing)
-        return "Wires not connected:\n" + ", ".join(missing)
+        return "Disconnected wires:\n" + _build_connection_row(states)
 
     def get_setup_options(self) -> list[SetupOption]:
         """Return setup options for the LCD setup screen."""
