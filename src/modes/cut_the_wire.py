@@ -14,7 +14,7 @@ The LCD optionally shows a GM-configured hint on the bottom line.
 """
 
 import random
-from typing import Any
+from typing import Any, Optional
 
 from src.modes.base_mode import (
     BaseMode,
@@ -100,6 +100,33 @@ class CutTheWireMode(BaseMode):
             planting_type=PlantingType.TIMED,
             duration=_DEFAULT_PLANTING_DURATION,
         )
+
+    def validate_can_start(self, context: GameContext) -> Optional[str]:
+        """Refuse to start if the wires HAL is missing or any wire is unplugged.
+
+        Args:
+            context: The prospective game context (with ``wires`` attached).
+
+        Returns:
+            None if every configured wire reads intact, otherwise a
+            multi-line error message naming the disconnected colours.
+        """
+        wires = context.custom_data.get("wires")
+        if wires is None:
+            return "Wires HAL\nnot available"
+
+        try:
+            states: dict[str, bool] = wires.get_wire_states()
+        except Exception as exc:  # noqa: BLE001 — HAL must not crash the menu
+            logger.error("CutTheWire: failed to read wire states: %s", exc)
+            return "Wires HAL\nread failed"
+
+        missing = [name for name in WIRE_COLORS if not states.get(name, False)]
+        if not missing:
+            return None
+
+        logger.info("CutTheWire: blocked start, wires not connected: %s", missing)
+        return "Wires not connected:\n" + ", ".join(missing)
 
     def get_setup_options(self) -> list[SetupOption]:
         """Return setup options for the LCD setup screen."""
@@ -210,7 +237,11 @@ class CutTheWireMode(BaseMode):
                 roles[name] = "penalty"
 
         context.wire_roles.update(roles)
-        context.custom_data["previous_states"] = dict(initial_states)
+        # Wires that have already been cut this round. Once a name is
+        # added it stays — reconnecting a cut wire must NOT re-arm it.
+        context.custom_data["cut_wires"] = {
+            name for name, intact in initial_states.items() if not intact
+        }
         context.custom_data["penalty_count"] = 0
         context.custom_data["wire_names"] = wire_names
 
@@ -222,6 +253,11 @@ class CutTheWireMode(BaseMode):
 
     def on_tick(self, remaining_seconds: int, context: GameContext) -> ModeResult:
         """Poll wire states and react to newly cut wires.
+
+        Cutting two or more wires within the same tick is treated as
+        tampering and detonates immediately — closes the rip-everything
+        defuse exploit. Reconnecting a cut wire is ignored: a wire that
+        has been cut once stays "cut" from the mode's perspective.
 
         Args:
             remaining_seconds: Seconds left on the timer.
@@ -235,58 +271,66 @@ class CutTheWireMode(BaseMode):
             return ModeResult.CONTINUE
 
         current_states: dict[str, bool] = wires.get_wire_states()
-        previous_states: dict[str, bool] = context.custom_data["previous_states"]
+        cut_wires: set[str] = context.custom_data["cut_wires"]
+        wire_names: list[str] = context.custom_data.get("wire_names", [])
 
-        for name in context.custom_data.get("wire_names", []):
-            was_intact = previous_states.get(name, True)
-            is_intact = current_states.get(name, True)
+        new_cuts: list[str] = [
+            name for name in wire_names
+            if name not in cut_wires and not current_states.get(name, True)
+        ]
+        if not new_cuts:
+            return ModeResult.CONTINUE
 
-            if was_intact and not is_intact:
-                role: str = context.wire_roles.get(name, "")
-                logger.info("CutTheWire: wire '%s' cut — role: %s", name, role)
+        cut_wires.update(new_cuts)
 
-                if role == "defuse":
-                    context.custom_data["previous_states"] = dict(current_states)
-                    return ModeResult.DEFUSED
+        if len(new_cuts) > 1:
+            logger.info(
+                "CutTheWire: %d wires cut simultaneously %s — DETONATE",
+                len(new_cuts),
+                new_cuts,
+            )
+            return ModeResult.DETONATED
 
-                if role == "detonate":
-                    context.custom_data["previous_states"] = dict(current_states)
-                    return ModeResult.DETONATED
+        name = new_cuts[0]
+        role: str = context.wire_roles.get(name, "")
+        logger.info("CutTheWire: wire '%s' cut — role: %s", name, role)
 
-                if role == "penalty":
-                    penalty_count: int = context.custom_data.get("penalty_count", 0)
-                    base: float = context.custom_data.get(
-                        "cut_wire_penalty_base", _DEFAULT_PENALTY_BASE
-                    )
-                    multiplier: float = context.custom_data.get(
-                        "cut_wire_penalty_multiplier", _DEFAULT_PENALTY_MULTIPLIER
-                    )
-                    penalty = int(base * (multiplier ** penalty_count))
-                    new_remaining = max(0, remaining_seconds - penalty)
-                    logger.info(
-                        "CutTheWire: penalty wire — -%ds (count=%d), %d->%d",
-                        penalty,
-                        penalty_count,
-                        remaining_seconds,
-                        new_remaining,
-                    )
-                    context.remaining_seconds = new_remaining
-                    context.custom_data["penalty_count"] = penalty_count + 1
-                    if new_remaining == 0:
-                        context.custom_data["previous_states"] = dict(current_states)
-                        return ModeResult.DETONATED
+        if role == "defuse":
+            return ModeResult.DEFUSED
 
-        context.custom_data["previous_states"] = dict(current_states)
+        if role == "detonate":
+            return ModeResult.DETONATED
+
+        if role == "penalty":
+            penalty_count: int = context.custom_data.get("penalty_count", 0)
+            base: float = context.custom_data.get(
+                "cut_wire_penalty_base", _DEFAULT_PENALTY_BASE
+            )
+            multiplier: float = context.custom_data.get(
+                "cut_wire_penalty_multiplier", _DEFAULT_PENALTY_MULTIPLIER
+            )
+            penalty = int(base * (multiplier ** penalty_count))
+            new_remaining = max(0, remaining_seconds - penalty)
+            logger.info(
+                "CutTheWire: penalty wire — -%ds (count=%d), %d->%d",
+                penalty,
+                penalty_count,
+                remaining_seconds,
+                new_remaining,
+            )
+            context.remaining_seconds = new_remaining
+            context.custom_data["penalty_count"] = penalty_count + 1
+            if new_remaining == 0:
+                return ModeResult.DETONATED
+
         return ModeResult.CONTINUE
 
     def _get_wire_states_for_display(self, context: GameContext) -> dict[str, bool]:
         wires = context.custom_data.get("wires")
         if wires is not None:
             return wires.get_wire_states()
-        return context.custom_data.get(
-            "previous_states",
-            {name: True for name in WIRE_COLORS},
-        )
+        cut_wires: set[str] = context.custom_data.get("cut_wires", set())
+        return {name: name not in cut_wires for name in WIRE_COLORS}
 
     def render(self, display: Any, remaining_seconds: int, context: GameContext) -> None:
         """Render the armed screen.

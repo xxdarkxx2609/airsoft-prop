@@ -87,6 +87,11 @@ class App:
         # Tournament transition target ("enter" or "leave")
         self.tournament_transition_target: str = ""
 
+        # Pending payload for the modal InfoScreen — set by callers
+        # before screen_manager.switch_to("info"). Cleared on screen entry.
+        self.pending_info_message: str = ""
+        self.pending_info_return: str = ""
+
         # Cross-thread event queue (WebUI → main loop)
         self._event_queue: queue.Queue[dict[str, Any]] = queue.Queue()
 
@@ -366,6 +371,7 @@ class App:
         """Create and register all screens."""
         from src.ui.armed_screen import ArmedScreen
         from src.ui.boot_screen import BootScreen
+        from src.ui.info_screen import InfoScreen
         from src.ui.menu_screen import MenuScreen
         from src.ui.planting_screen import PlantingScreen
         from src.ui.result_screen import ResultScreen
@@ -383,6 +389,7 @@ class App:
         self.screen_manager.register("result", ResultScreen(self))
         self.screen_manager.register("status", StatusScreen(self))
         self.screen_manager.register("update", UpdateScreen(self))
+        self.screen_manager.register("info", InfoScreen(self))
         self.screen_manager.register("tournament", TournamentScreen(self))
         self.screen_manager.register("tournament_transition", TournamentTransitionScreen(self))
 

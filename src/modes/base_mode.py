@@ -136,6 +136,23 @@ class BaseMode(ABC):
         """
         return PlantingConfig()
 
+    def validate_can_start(self, context: GameContext) -> Optional[str]:
+        """Check whether the mode can start with the given context.
+
+        Called after the context is built but before on_armed(). Override
+        in subclasses to enforce hardware preconditions (for example, all
+        wires connected for Cut the Wire).
+
+        Args:
+            context: The prospective game context.
+
+        Returns:
+            None if the mode can start, otherwise an error message to show
+            the user. The message may contain newline characters; the
+            caller is responsible for splitting it across LCD lines.
+        """
+        return None
+
     @abstractmethod
     def get_setup_options(self) -> list[SetupOption]:
         """Return the list of configurable options for this mode.

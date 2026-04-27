@@ -434,6 +434,19 @@ class SetupScreen(BaseScreen):
             "modes", "cut_the_wire", "detonate_wire", default="",
         ))
 
+        # Mode-specific precondition check (e.g. all wires connected)
+        precondition_error = mode.validate_can_start(context)
+        if precondition_error:
+            logger.warning(
+                "Cannot start mode '%s': %s",
+                mode.name,
+                precondition_error.replace("\n", " | "),
+            )
+            self.app.pending_info_message = precondition_error
+            self.app.pending_info_return = "setup"
+            self.app.screen_manager.switch_to("info")
+            return
+
         # Attach context to the app and notify the mode
         self.app.game_context = context
         mode.on_armed(context)
