@@ -26,8 +26,6 @@ NC='\033[0m'
 STEP=0
 TOTAL_STEPS=8
 LOGFILE="$(pwd)/install.log"
-SPINNER_PID=""
-
 # Track whether hardware config changed (needs reboot)
 NEEDS_REBOOT=false
 
@@ -46,92 +44,31 @@ step() {
     echo -e "${BOLD}${BLUE}[${STEP}/${TOTAL_STEPS}]${NC}${BOLD} $1${NC}"
 }
 
-# Start a background spinner animation
-start_spinner() {
-    local chars='|/-\'
-    (
-        while true; do
-            for (( i=0; i<${#chars}; i++ )); do
-                printf "\r       %s working... " "${chars:$i:1}"
-                sleep 0.15
-            done
-        done
-    ) &
-    SPINNER_PID=$!
-}
-
-# Stop the background spinner and clear the line
-stop_spinner() {
-    if [[ -n "${SPINNER_PID:-}" ]] && kill -0 "$SPINNER_PID" 2>/dev/null; then
-        kill "$SPINNER_PID" 2>/dev/null
-        wait "$SPINNER_PID" 2>/dev/null || true
-        printf "\r                          \r"
-    fi
-    SPINNER_PID=""
-}
-
-# Run a command with a spinner, redirecting output to the log file reliably.
-# Usage: run_with_spinner "Description" command arg1 arg2 ...
-run_with_spinner() {
+# Run a command, streaming output live to both terminal and log file.
+# Usage: run_logged "Description" command arg1 arg2 ...
+run_logged() {
     local description="$1"
     shift
     echo -e "       ${description}..."
     echo "=== $(date '+%H:%M:%S') $description ===" >> "$LOGFILE"
-    
-    # Store initial log size for verification
-    local initial_size=$(stat -f%z "$LOGFILE" 2>/dev/null || stat -c%s "$LOGFILE" 2>/dev/null || echo "0")
-    
-    start_spinner
-    
-    # Run command, capture output to log with unbuffered line-by-line writes
-    # Using stdbuf to force line-buffering, ensuring no output is lost
-    local cmd_output_file="/tmp/airsoft-cmd-$$-output.txt"
-    {
-        # Try stdbuf first (better buffering control), fall back to direct execution
-        if command -v stdbuf &>/dev/null; then
-            stdbuf -oL -eL "$@" 
-        else
-            "$@"
-        fi
-    } > "$cmd_output_file" 2>&1
-    
-    local exit_code=$?
-    
-    # Write captured output to logfile, ensuring each line is flushed
-    if [[ -f "$cmd_output_file" ]]; then
-        while IFS= read -r line; do
-            echo "$line" >> "$LOGFILE"
-        done < "$cmd_output_file"
-        rm -f "$cmd_output_file"
-    fi
-    
-    # Force filesystem sync to guarantee data is written
-    sync "$LOGFILE" 2>/dev/null || true
-    
-    stop_spinner
-    
+
+    # Run in a subshell with set -e disabled so we can capture the real exit code.
+    # tee streams output simultaneously to the terminal and the log file.
+    # || true prevents set -e from firing on the pipeline itself.
+    ( set +e; "$@" ) 2>&1 | tee -a "$LOGFILE" || true
+    local exit_code=${PIPESTATUS[0]}
+
     if [[ $exit_code -eq 0 ]]; then
-        # Verify logfile grew (sanity check for logging issues)
-        local final_size=$(stat -f%z "$LOGFILE" 2>/dev/null || stat -c%s "$LOGFILE" 2>/dev/null || echo "0")
-        if [[ $final_size -eq $initial_size ]] && [[ "$description" =~ (Installing|Updating|Pulling|Cloning|pip) ]]; then
-            echo -e "       ${YELLOW}⚠ WARNING: Command succeeded but little output was logged!${NC}"
-            echo "[WARNING] $description completed but minimal logfile growth - check network" >> "$LOGFILE"
-        fi
         echo -e "       ${GREEN}✓${NC} ${description} done"
+        echo "=== $(date '+%H:%M:%S') SUCCESS ===" >> "$LOGFILE"
     else
-        # Append failure marker to log
         echo "" >> "$LOGFILE"
-        echo "=== $(date '+%H:%M:%S') COMMAND FAILED ===" >> "$LOGFILE"
-        echo "Exit code: $exit_code" >> "$LOGFILE"
-        sync "$LOGFILE" 2>/dev/null || true
-        
+        echo "=== $(date '+%H:%M:%S') FAILED (exit code: $exit_code) ===" >> "$LOGFILE"
         if [[ $exit_code -eq 124 ]]; then
-            echo -e "       ${RED}✗ ${description} TIMEOUT${NC}"
+            echo -e "       ${RED}✗ TIMEOUT: ${description}${NC}"
         else
-            echo -e "       ${RED}✗ ${description} FAILED (exit code: $exit_code)${NC}"
+            echo -e "       ${RED}✗ FAILED (exit $exit_code): ${description}${NC}"
         fi
-        echo -e "       ${RED}Last output from log:${NC}"
-        tail -8 "$LOGFILE" | sed 's/^/         /'
         exit "$exit_code"
     fi
 }
@@ -143,7 +80,6 @@ run_with_spinner() {
 
 cleanup_on_exit() {
     local exit_code=$?
-    stop_spinner
     if [[ $exit_code -ne 0 ]]; then
         echo ""
         echo -e "${RED}============================================${NC}"
@@ -204,11 +140,11 @@ info "Logging verbose output to ${LOGFILE}"
 step "Installing system packages"
 
 # Attempt apt-get update with timeout and retry
-run_with_spinner "Updating package lists" \
+run_logged "Updating package lists" \
     bash -c '
         for attempt in 1 2 3; do
             echo "[ATTEMPT $attempt/3] apt-get update..."
-            if timeout 120 apt-get update \
+            if DEBIAN_FRONTEND=noninteractive timeout 120 apt-get update \
                 -o APT::Acquire::Timeout=30 \
                 -o APT::Acquire::ForceIPv4=true \
                 -o APT::Acquire::http::Timeout=30 \
@@ -223,33 +159,44 @@ run_with_spinner "Updating package lists" \
         exit 1
     '
 
-run_with_spinner "Installing dependencies (python3, git, i2c-tools, SDL2, hostapd, dnsmasq, ...)" \
-    bash -c '
-        timeout 600 apt-get install -y \
-            --no-install-recommends \
-            --no-show-upgraded \
-            -o APT::Acquire::Timeout=30 \
-            -o APT::Acquire::ForceIPv4=true \
-            -o APT::Acquire::http::Timeout=30 \
-            -o Acquire::ForceIPv4=true \
-            -o APT::Progress::Fancy="1" \
-            python3 \
-            python3-venv \
-            python3-pip \
-            python3-dev \
-            git \
-            i2c-tools \
-            libsdl2-mixer-2.0-0 \
-            libsdl2-2.0-0 \
-            libevdev-dev \
-            hostapd \
-            dnsmasq \
-            network-manager
-    '
+run_logged "Installing Python runtime (1/5)" \
+    bash -c "DEBIAN_FRONTEND=noninteractive timeout 600 apt-get install -y \
+        --no-install-recommends --no-show-upgraded \
+        -o APT::Acquire::Timeout=30 -o APT::Acquire::ForceIPv4=true \
+        -o APT::Acquire::http::Timeout=30 -o Acquire::ForceIPv4=true \
+        python3 python3-venv python3-pip python3-dev"
+
+run_logged "Installing audio libraries — SDL2 (2/5)" \
+    bash -c "DEBIAN_FRONTEND=noninteractive timeout 600 apt-get install -y \
+        --no-install-recommends --no-show-upgraded \
+        -o APT::Acquire::Timeout=30 -o APT::Acquire::ForceIPv4=true \
+        -o APT::Acquire::http::Timeout=30 -o Acquire::ForceIPv4=true \
+        libsdl2-2.0-0 libsdl2-mixer-2.0-0"
+
+run_logged "Installing hardware interface libraries (3/5)" \
+    bash -c "DEBIAN_FRONTEND=noninteractive timeout 600 apt-get install -y \
+        --no-install-recommends --no-show-upgraded \
+        -o APT::Acquire::Timeout=30 -o APT::Acquire::ForceIPv4=true \
+        -o APT::Acquire::http::Timeout=30 -o Acquire::ForceIPv4=true \
+        i2c-tools libevdev-dev"
+
+run_logged "Installing network services — hostapd, dnsmasq, NetworkManager (4/5)" \
+    bash -c "DEBIAN_FRONTEND=noninteractive timeout 600 apt-get install -y \
+        --no-install-recommends --no-show-upgraded \
+        -o APT::Acquire::Timeout=30 -o APT::Acquire::ForceIPv4=true \
+        -o APT::Acquire::http::Timeout=30 -o Acquire::ForceIPv4=true \
+        hostapd dnsmasq network-manager"
+
+run_logged "Installing git (5/5)" \
+    bash -c "DEBIAN_FRONTEND=noninteractive timeout 600 apt-get install -y \
+        --no-install-recommends --no-show-upgraded \
+        -o APT::Acquire::Timeout=30 -o APT::Acquire::ForceIPv4=true \
+        -o APT::Acquire::http::Timeout=30 -o Acquire::ForceIPv4=true \
+        git"
 
 # Disable hostapd/dnsmasq system services — the application manages them
 # directly as subprocesses with custom config files.
-run_with_spinner "Disabling hostapd/dnsmasq system services" \
+run_logged "Disabling hostapd/dnsmasq system services" \
     bash -c '
         systemctl stop hostapd || true
         systemctl disable hostapd || true
@@ -265,7 +212,7 @@ run_with_spinner "Disabling hostapd/dnsmasq system services" \
 
 step "Enabling I2C interface"
 
-run_with_spinner "Configuring I2C" \
+run_logged "Configuring I2C" \
     bash -c '
         if ! grep -q "^dtparam=i2c_arm=on" /boot/firmware/config.txt 2>/dev/null; then
             echo "dtparam=i2c_arm=on" >> /boot/firmware/config.txt
@@ -303,7 +250,7 @@ fi
 if [[ "$AUDIO_OUTPUT" == "pwm" ]]; then
     step "Configuring audio output (PWM on GPIO18)"
 
-    run_with_spinner "Configuring PWM audio overlay" \
+    run_logged "Configuring PWM audio overlay" \
         bash -c '
             if ! grep -q "^dtoverlay=pwm" /boot/firmware/config.txt 2>/dev/null; then
                 echo "dtoverlay=pwm,pin=18,func=2" >> /boot/firmware/config.txt
@@ -322,7 +269,7 @@ else
     step "Configuring audio output (USB speaker)"
 
     # Remove PWM overlay if previously configured (avoids conflicts)
-    run_with_spinner "Removing PWM audio overlay (if present)" \
+    run_logged "Removing PWM audio overlay (if present)" \
         bash -c '
             if grep -q "^dtoverlay=pwm" /boot/firmware/config.txt 2>/dev/null; then
                 sed -i "/^dtoverlay=pwm/d" /boot/firmware/config.txt
@@ -339,7 +286,7 @@ else
 
     # Create ALSA config to set USB audio as default output device.
     # Auto-detect USB card number; fall back to card 0 if not found.
-    run_with_spinner "Configuring USB audio as default (ALSA)" \
+    run_logged "Configuring USB audio as default (ALSA)" \
         bash -c '
             USB_CARD=$(aplay -l 2>/dev/null | grep -i usb | head -1 | grep -oP "card \K\d+" || echo "0")
             ASOUNDRC="/home/pi/.asoundrc"
@@ -366,14 +313,14 @@ git config --global --add safe.directory "$INSTALL_DIR" >> "$LOGFILE" 2>&1
 if [[ -d "$INSTALL_DIR/.git" ]]; then
     info "Existing installation found, updating..."
     cd "$INSTALL_DIR"
-    run_with_spinner "Pulling latest changes" \
+    run_logged "Pulling latest changes" \
         timeout 120 sudo -u pi git \
             -c http.connectTimeout=30 \
             -c http.lowSpeedLimit=1024 \
             -c http.lowSpeedTime=30 \
             pull origin main || warn "Git pull failed, continuing with existing code"
 else
-    run_with_spinner "Cloning repository to ${INSTALL_DIR}" \
+    run_logged "Cloning repository to ${INSTALL_DIR}" \
         timeout 180 sudo -u pi git \
             -c http.connectTimeout=30 \
             -c http.lowSpeedLimit=1024 \
@@ -399,21 +346,21 @@ sudo -u pi bash -c "git -C '$INSTALL_DIR' describe --tags --always 2>/dev/null \
 step "Installing Python dependencies"
 
 if [[ ! -d "$VENV_DIR" ]]; then
-    run_with_spinner "Creating virtual environment" \
+    run_logged "Creating virtual environment" \
         sudo -u pi python3 -m venv "$VENV_DIR"
 fi
 
-run_with_spinner "Upgrading pip" \
+run_logged "Upgrading pip" \
     timeout 120 sudo -u pi "$VENV_DIR/bin/pip" \
         --default-timeout=30 \
         install --no-cache-dir --upgrade pip
 
-run_with_spinner "Installing Python packages (requirements.txt)" \
+run_logged "Installing Python packages (requirements.txt)" \
     timeout 300 sudo -u pi "$VENV_DIR/bin/pip" \
         --default-timeout=30 \
         install --no-cache-dir -r requirements.txt
 
-run_with_spinner "Installing Pi-specific packages (LCD, GPIO, I2C, evdev)" \
+run_logged "Installing Pi-specific packages (LCD, GPIO, I2C, evdev)" \
     timeout 300 sudo -u pi "$VENV_DIR/bin/pip" \
         --default-timeout=30 \
         install --no-cache-dir -r requirements-pi.txt
@@ -424,7 +371,7 @@ run_with_spinner "Installing Pi-specific packages (LCD, GPIO, I2C, evdev)" \
 
 step "Configuring user permissions"
 
-run_with_spinner "Adding pi user to hardware groups (i2c, gpio, audio, input)" \
+run_logged "Adding pi user to hardware groups (i2c, gpio, audio, input)" \
     bash -c '
         usermod -aG i2c pi || true
         usermod -aG gpio pi || true
@@ -435,7 +382,7 @@ run_with_spinner "Adding pi user to hardware groups (i2c, gpio, audio, input)" \
 # Allow pi user to trigger WiFi rescans without a password.
 # NetworkManager requires root/PolicyKit for rescan operations.
 SUDOERS_FILE="/etc/sudoers.d/airsoft-prop-wifi"
-run_with_spinner "Configuring passwordless nmcli for pi user" \
+run_logged "Configuring passwordless nmcli for pi user" \
     bash -c "
         cat > '$SUDOERS_FILE' <<'SUDOEOF'
 pi ALL=(root) NOPASSWD: /usr/bin/nmcli device wifi rescan
@@ -469,23 +416,23 @@ step "Configuring USB automount for key files"
 # directly.  Instead we use a dedicated systemd template service triggered
 # by a udev rule — the service runs outside the udev worker context.
 
-run_with_spinner "Removing usbmount (incompatible with Bookworm)" \
+run_logged "Removing usbmount (incompatible with Bookworm)" \
     bash -c '
         if dpkg -l usbmount 2>/dev/null | grep -q "^ii"; then
-            apt-get remove -y usbmount
+            DEBIAN_FRONTEND=noninteractive apt-get remove -y usbmount
             echo "[INFO] usbmount removed"
         else
             echo "[INFO] usbmount not installed, nothing to remove"
         fi
     '
 
-run_with_spinner "Creating USB mount point /media/usb" \
+run_logged "Creating USB mount point /media/usb" \
     bash -c '
         mkdir -p /media/usb
         echo "[INFO] /media/usb created"
     '
 
-run_with_spinner "Installing USB mount helper script" \
+run_logged "Installing USB mount helper script" \
     bash -c '
         # Determine the UID/GID of the pi user (fall back to 1000)
         PI_UID=$(id -u pi 2>/dev/null || echo 1000)
@@ -520,7 +467,7 @@ SCRIPT
         echo "[INFO] airsoft-usb-mount helper installed"
     '
 
-run_with_spinner "Installing usb-mount systemd template service" \
+run_logged "Installing usb-mount systemd template service" \
     bash -c '
         cat > /etc/systemd/system/usb-mount@.service <<EOF
 [Unit]
@@ -541,7 +488,7 @@ EOF
         echo "[INFO] usb-mount@.service installed"
     '
 
-run_with_spinner "Installing udev rule for USB key detection" \
+run_logged "Installing udev rule for USB key detection" \
     bash -c '
         cat > /etc/udev/rules.d/99-airsoft-usb.rules <<EOF
 # Airsoft Prop: auto-mount first USB mass storage partition for key files.
@@ -558,7 +505,7 @@ EOF
 
 step "Installing systemd service"
 
-run_with_spinner "Setting up ${SERVICE_NAME} service" \
+run_logged "Setting up ${SERVICE_NAME} service" \
     bash -c "
         sed -e 's|__INSTALL_DIR__|${INSTALL_DIR}|g' \
             -e 's|__VENV_DIR__|${VENV_DIR}|g' \
@@ -571,7 +518,7 @@ run_with_spinner "Setting up ${SERVICE_NAME} service" \
 # Only start the service if no reboot is pending.
 # I2C and PWM overlay changes require a reboot before hardware works.
 if [[ "$NEEDS_REBOOT" == "false" ]]; then
-    run_with_spinner "Starting service" \
+    run_logged "Starting service" \
         systemctl start "$SERVICE_NAME"
 else
     info "Service NOT started — reboot required first"
