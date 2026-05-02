@@ -396,9 +396,9 @@ class App:
     def _init_network(self) -> None:
         """Initialize captive portal / AP fallback.
 
-        Checks WiFi connectivity and starts the access point if no
-        network is available.  A background monitor re-enables the AP
-        if WiFi drops at runtime.
+        Checks WiFi connectivity, attempts hotspot auto-connect if not already
+        connected, then falls back to AP mode.  A background monitor re-enables
+        the AP (or reconnects to the hotspot) if WiFi drops at runtime.
         """
         try:
             from src.web.captive_portal import create_captive_portal
@@ -410,9 +410,20 @@ class App:
             if force_ap:
                 logger.info("force_ap enabled — starting AP mode unconditionally")
                 self.captive_portal.start_ap()
-            elif not self.captive_portal.is_wifi_connected():
-                logger.info("No WiFi connection — starting AP mode")
-                self.captive_portal.start_ap()
+            elif self.captive_portal.is_wifi_connected():
+                ssid = self.captive_portal.get_connected_ssid()
+                logger.info("WiFi already connected: %s", ssid or "(unknown)")
+            else:
+                hotspot_ssid = self.config.get("hotspot", "ssid", default="")
+                hotspot_pw = self.config.get("hotspot", "password", default="")
+                connected = False
+                if hotspot_ssid and not self._mock:
+                    connected = self.captive_portal.try_connect_hotspot(
+                        hotspot_ssid, hotspot_pw
+                    )
+                if not connected:
+                    logger.info("No WiFi connection — starting AP mode")
+                    self.captive_portal.start_ap()
             self.captive_portal.start_monitor()
         except ImportError as e:
             logger.warning("Captive portal module not available — %s", e)

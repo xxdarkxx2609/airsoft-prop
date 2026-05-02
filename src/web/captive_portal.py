@@ -43,6 +43,22 @@ class CaptivePortalBase(ABC):
         """Check if wlan0 is connected to an infrastructure WiFi network."""
 
     @abstractmethod
+    def get_connected_ssid(self) -> Optional[str]:
+        """Return the SSID of the current WiFi connection, or None."""
+
+    @abstractmethod
+    def try_connect_hotspot(self, ssid: str, password: str) -> bool:
+        """Attempt to connect to a WiFi network.
+
+        Args:
+            ssid: Target network SSID.
+            password: WPA passphrase.
+
+        Returns:
+            True if connection succeeded.
+        """
+
+    @abstractmethod
     def start_ap(self) -> bool:
         """Start the access point.
 
@@ -115,8 +131,10 @@ class CaptivePortal(CaptivePortalBase):
         self._hostapd_proc: Optional[subprocess.Popen] = None
         self._dnsmasq_proc: Optional[subprocess.Popen] = None
 
-        # Cached WiFi state — primed at init, updated by monitor thread.
-        self._wifi_connected: bool = self._check_wifi_connected()
+        # Hotspot credentials — set when try_connect_hotspot() is called so the
+        # monitor can retry the same network on connection loss.
+        self._hotspot_ssid: str = ""
+        self._hotspot_password: str = ""
 
         # Monitor thread
         self._monitor_thread: Optional[threading.Thread] = None
@@ -124,6 +142,9 @@ class CaptivePortal(CaptivePortalBase):
 
         # Lock for AP start/stop to avoid races between monitor and web UI.
         self._lock = threading.Lock()
+
+        # Cached WiFi state — primed at init, updated by monitor thread.
+        self._wifi_connected: bool = self._check_wifi_connected()
 
     # -- connectivity check --------------------------------------------------
 
@@ -141,12 +162,60 @@ class CaptivePortal(CaptivePortalBase):
                 ["nmcli", "-t", "-f", "GENERAL.STATE", "device", "show", "wlan0"],
                 capture_output=True, text=True, timeout=10,
             )
-            connected = "connected" in result.stdout.lower() and result.returncode == 0
+            logger.debug("nmcli wlan0 state: %s", result.stdout.strip())
+            # Use "(connected)" to avoid false positive: "connected" is a
+            # substring of "disconnected".
+            connected = "(connected)" in result.stdout.lower() and result.returncode == 0
         except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as exc:
             logger.warning("WiFi connectivity check failed: %s", exc)
             connected = False
         self._wifi_connected = connected
         return connected
+
+    def get_connected_ssid(self) -> Optional[str]:
+        """Return the SSID of the current WiFi connection, or None."""
+        try:
+            result = subprocess.run(
+                ["nmcli", "-t", "-f", "GENERAL.CONNECTION", "device", "show", "wlan0"],
+                capture_output=True, text=True, timeout=10,
+            )
+            for line in result.stdout.splitlines():
+                if line.startswith("GENERAL.CONNECTION:"):
+                    val = line.split(":", 1)[1].strip()
+                    return val if val and val != "--" else None
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as exc:
+            logger.warning("Could not read connected SSID: %s", exc)
+        return None
+
+    def try_connect_hotspot(self, ssid: str, password: str) -> bool:
+        """Attempt to connect wlan0 to a WiFi network via nmcli.
+
+        Stores credentials so the monitor thread can retry on connection loss.
+
+        Args:
+            ssid: Target network SSID.
+            password: WPA passphrase.
+
+        Returns:
+            True if nmcli reports a successful connection.
+        """
+        self._hotspot_ssid = ssid
+        self._hotspot_password = password
+        logger.info("Attempting to connect to hotspot '%s'", ssid)
+        result = self._run_cmd(
+            ["sudo", "nmcli", "device", "wifi", "connect", ssid, "password", password],
+            timeout=25,
+        )
+        if result.returncode == 0:
+            logger.info("Connected to hotspot '%s'", ssid)
+            self._wifi_connected = True
+            return True
+        logger.warning(
+            "Hotspot connection failed for '%s': %s",
+            ssid,
+            result.stderr.strip() or result.stdout.strip(),
+        )
+        return False
 
     # -- AP lifecycle --------------------------------------------------------
 
@@ -316,22 +385,16 @@ class CaptivePortal(CaptivePortalBase):
                 break
 
             try:
-                if self._ap_active or self._check_wifi_connected():
-                    continue
-
-                logger.warning(
-                    "WiFi connection lost — waiting %.0fs for NM to reconnect",
-                    _RECONNECT_GRACE,
-                )
-                # Give NetworkManager a chance to auto-reconnect.
-                self._monitor_stop.wait(_RECONNECT_GRACE)
-                if self._monitor_stop.is_set():
-                    break
-
-                # Confirm the loss is still present before starting AP.
                 if not self._ap_active and not self._check_wifi_connected():
-                    logger.warning("WiFi still gone after grace period — starting AP")
-                    self.start_ap()
+                    logger.warning("WiFi connection lost")
+                    reconnected = False
+                    if self._hotspot_ssid:
+                        reconnected = self.try_connect_hotspot(
+                            self._hotspot_ssid, self._hotspot_password
+                        )
+                    if not reconnected:
+                        logger.warning("Starting AP fallback")
+                        self.start_ap()
             except Exception:
                 logger.exception("Error in captive portal monitor")
 
@@ -448,6 +511,13 @@ class MockCaptivePortal(CaptivePortalBase):
 
     def is_wifi_connected(self) -> bool:
         # In mock mode, pretend WiFi is connected (no AP needed).
+        return True
+
+    def get_connected_ssid(self) -> Optional[str]:
+        return "MockNetwork"
+
+    def try_connect_hotspot(self, ssid: str, password: str) -> bool:
+        logger.info("Mock: try_connect_hotspot('%s') → True", ssid)
         return True
 
     def start_ap(self) -> bool:
