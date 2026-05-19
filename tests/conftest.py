@@ -46,3 +46,31 @@ def mock_config(tmp_project_root):
     """A fresh :class:`Config` loaded from the temp project root."""
     from src.utils.config import Config
     return Config()
+
+
+@pytest.fixture
+def mock_app(tmp_project_root):
+    """A minimally-wired :class:`App` with every HAL slot filled by a mock.
+
+    ``App.init()`` is NOT called — we attach the HAL instances directly so
+    the daemon threads / pygame windows / web server stay out of the test.
+    Tests that need screens should register them explicitly.
+    """
+    from src.app import App
+    from src.hal.audio_mock import MockAudio
+    from src.hal.battery_none import NoBattery
+    from src.hal.display_mock import MockDisplay
+    from src.hal.input_mock import MockInput
+    from src.hal.led_mock import MockLed
+    from src.hal.usb_detector_mock import MockUsbDetector
+    from src.hal.wires_mock import MockWires
+
+    app = App(mock=True)
+    app.audio = MockAudio()
+    app.display = MockDisplay()
+    app.input = MockInput()  # NOT init'd — would spawn a stdin reader thread
+    app.wires = MockWires()
+    app.battery = NoBattery()
+    app.usb_detector = MockUsbDetector()
+    app.led = MockLed()
+    return app
