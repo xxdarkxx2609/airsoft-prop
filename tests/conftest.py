@@ -49,6 +49,34 @@ def mock_config(tmp_project_root):
 
 
 @pytest.fixture
+def web_client(tmp_project_root, mock_app):
+    """A Flask test client wired to the temp project root + mock_app.
+
+    The Flask ``app.config["PROP_APP"]`` reference points at ``mock_app``
+    so endpoints that post events to the main loop hit ``mock_app``'s
+    event queue. ``mock_app.modes`` is populated via :func:`discover_modes`
+    so tournament endpoints can validate mode names.
+
+    Auth state: no password is set by default (open mode). Tests that
+    need a password should call ``mock_app.config.save_web_config(...)``.
+    """
+    from src.modes import discover_modes
+    from src.web.server import create_app
+
+    mock_app.modes = [cls() for cls in discover_modes()]
+    flask_app = create_app(
+        config=mock_app.config,
+        mock=True,
+        battery=mock_app.battery,
+        prop_app=mock_app,
+        captive_portal=None,
+    )
+    flask_app.config["TESTING"] = True
+    with flask_app.test_client() as client:
+        yield client
+
+
+@pytest.fixture
 def mock_app(tmp_project_root):
     """A minimally-wired :class:`App` with every HAL slot filled by a mock.
 
