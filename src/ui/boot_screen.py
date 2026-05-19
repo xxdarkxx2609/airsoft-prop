@@ -86,8 +86,20 @@ class BootScreen(BaseScreen):
     # -- helpers --------------------------------------------------------------
 
     def _transition_to_menu(self) -> None:
-        """Switch to the main menu or tournament screen exactly once."""
+        """Switch to the main menu, tournament, or no-numpad screen exactly once.
+
+        If no input device is attached at boot the menu is unusable, so we
+        route to ``NoNumpadScreen`` which polls for the numpad and forwards
+        to the menu once it appears.
+        """
         self._transitioned = True
+        if not self.app.input.is_connected():
+            logger.warning(
+                "Boot complete but no numpad detected, "
+                "switching to no_numpad screen",
+            )
+            self.app.screen_manager.switch_to("no_numpad")
+            return
         if self.app.config.is_tournament_enabled():
             logger.info("Boot complete, switching to tournament screen")
             self.app.screen_manager.switch_to("tournament")

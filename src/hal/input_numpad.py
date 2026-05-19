@@ -14,6 +14,7 @@ from __future__ import annotations
 import queue
 import select
 import threading
+import time
 from typing import TYPE_CHECKING, Optional
 
 import evdev
@@ -26,6 +27,17 @@ if TYPE_CHECKING:
     from src.utils.config import Config
 
 logger = get_logger(__name__)
+
+# Boot-time detection: some USB hubs are slow to enumerate the numpad, so
+# we retry the initial scan a few times before falling through to the
+# background rescan loop.
+_INIT_RETRY_COUNT: int = 3
+_INIT_RETRY_DELAY: float = 0.5
+
+# Background reader thread sleeps this long between rescans while no
+# device is attached (both during boot-time discovery and after a
+# runtime disconnect).
+_RESCAN_INTERVAL: float = 1.0
 
 # evdev keycode -> application key string
 _KEY_MAP: dict[int, str] = {
@@ -79,28 +91,44 @@ class NumpadInput(InputBase):
         self._grabbed: bool = False
 
     def init(self) -> None:
-        """Find the USB numpad, grab it, and start the reader thread."""
-        self._device = self._find_numpad()
-        if self._device is None:
-            logger.warning("No USB numpad found -- input will be unavailable")
-            return
+        """Find the USB numpad and start the reader thread.
 
-        # Grab exclusively so keys don't leak to the Linux console.
-        try:
-            self._device.grab()
-            self._grabbed = True
-            logger.debug("Numpad device grabbed exclusively")
-        except (OSError, IOError):
-            logger.warning("Could not grab numpad exclusively (already grabbed?)")
+        Retries the initial scan a few times to absorb slow USB enumeration
+        on some powered hubs. The reader thread is started unconditionally
+        — if no device was found, it keeps rescanning every
+        ``_RESCAN_INTERVAL`` seconds so the numpad can be hot-plugged.
+        """
+        for attempt in range(1, _INIT_RETRY_COUNT + 1):
+            device = self._find_numpad()
+            if device is not None:
+                self._attach(device)
+                logger.info(
+                    "NumpadInput initialized: %s (%s)",
+                    device.name, device.path,
+                )
+                break
+            if attempt < _INIT_RETRY_COUNT:
+                logger.debug(
+                    "Numpad not found (attempt %d/%d), retrying in %.1fs",
+                    attempt, _INIT_RETRY_COUNT, _INIT_RETRY_DELAY,
+                )
+                time.sleep(_INIT_RETRY_DELAY)
+        else:
+            logger.warning(
+                "No USB numpad found after %d attempts -- "
+                "reader thread will keep scanning every %.1fs",
+                _INIT_RETRY_COUNT, _RESCAN_INTERVAL,
+            )
 
         self._running = True
         self._thread = threading.Thread(
             target=self._read_loop, daemon=True, name="NumpadInput",
         )
         self._thread.start()
-        logger.info(
-            "NumpadInput initialized: %s (%s)", self._device.name, self._device.path,
-        )
+
+    def is_connected(self) -> bool:
+        """Return True if a numpad device is currently attached and grabbed."""
+        return self._device is not None
 
     def get_key(self) -> Optional[str]:
         """Return the next buffered key, or None if the queue is empty.
@@ -163,22 +191,35 @@ class NumpadInput(InputBase):
             dev.close()
         return None
 
+    def _attach(self, device: evdev.InputDevice) -> None:
+        """Store the device and grab it exclusively.
+
+        Used by both the boot-time ``init()`` path and the reader thread's
+        runtime reconnect path so the two stay in sync. Exclusive grab
+        prevents key events from leaking to the Linux console.
+        """
+        self._device = device
+        try:
+            device.grab()
+            self._grabbed = True
+            logger.debug("Numpad device grabbed exclusively")
+        except (OSError, IOError):
+            self._grabbed = False
+            logger.warning("Could not grab numpad exclusively (already grabbed?)")
+
     def _read_loop(self) -> None:
         """Background thread: read evdev events and enqueue mapped keys."""
-        import time as _time
-
         while self._running:
             if self._device is None:
-                self._device = self._find_numpad()
-                if self._device is None:
-                    _time.sleep(1.0)
+                device = self._find_numpad()
+                if device is None:
+                    time.sleep(_RESCAN_INTERVAL)
                     continue
-                try:
-                    self._device.grab()
-                    self._grabbed = True
-                except (OSError, IOError):
-                    pass
-                logger.info("Numpad reconnected: %s (%s)", self._device.name, self._device.path)
+                self._attach(device)
+                logger.info(
+                    "Numpad reconnected: %s (%s)",
+                    self._device.name, self._device.path,
+                )
 
             try:
                 # Non-blocking read with 100ms timeout for clean shutdown.

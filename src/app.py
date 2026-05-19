@@ -373,6 +373,7 @@ class App:
         from src.ui.boot_screen import BootScreen
         from src.ui.info_screen import InfoScreen
         from src.ui.menu_screen import MenuScreen
+        from src.ui.no_numpad_screen import NoNumpadScreen
         from src.ui.planting_screen import PlantingScreen
         from src.ui.result_screen import ResultScreen
         from src.ui.setup_screen import SetupScreen
@@ -390,6 +391,7 @@ class App:
         self.screen_manager.register("status", StatusScreen(self))
         self.screen_manager.register("update", UpdateScreen(self))
         self.screen_manager.register("info", InfoScreen(self))
+        self.screen_manager.register("no_numpad", NoNumpadScreen(self))
         self.screen_manager.register("tournament", TournamentScreen(self))
         self.screen_manager.register("tournament_transition", TournamentTransitionScreen(self))
 

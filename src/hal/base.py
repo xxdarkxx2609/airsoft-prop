@@ -175,6 +175,15 @@ class InputBase(ABC):
         Default implementation is a no-op for implementations without a buffer.
         """
 
+    def is_connected(self) -> bool:
+        """Return True if an input device is currently available.
+
+        Implementations backed by a hot-pluggable device (e.g. USB numpad)
+        override this to reflect the real device state. The default returns
+        True so always-on inputs (mocks, on-board keyboards) need no override.
+        """
+        return True
+
 
 class WiresBase(ABC):
     """Abstract base for wire (GPIO) detection."""
