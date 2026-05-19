@@ -107,3 +107,4 @@ Fuer bereichsspezifische Aenderungen die entsprechende Referenzdatei konsultiere
 | Web & Netzwerk | [docs/claude/web.md](docs/claude/web.md) | Flask, API, Config, Captive Portal, WiFi, USB-Keys |
 | Build & Deploy | [docs/claude/build.md](docs/claude/build.md) | PyInstaller, CI/CD, Versionierung, Installer |
 | Mock-Modus | [docs/claude/mock.md](docs/claude/mock.md) | Desktop-Entwicklung, alle Mock-Implementierungen |
+| Tests | [docs/claude/tests.md](docs/claude/tests.md) | pytest-Suite, Gotcha-Abdeckung, Fixtures, wann welche Tests laufen |
