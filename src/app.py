@@ -828,18 +828,21 @@ class App:
         except Exception:
             logger.exception("Error shutting down web server")
 
-        # HAL shutdown
+        # HAL shutdown — each component in its own try/except so one bad
+        # driver cannot prevent the others from releasing resources.
+        logger.debug("Stopping HAL components...")
         try:
-            logger.debug("Stopping HAL components...")
             self.display.shutdown(clear_display=clear_display)
-            self.audio.shutdown()
-            self.input.shutdown()
-            self.wires.shutdown()
-            self.usb_detector.shutdown()
-            self.battery.shutdown()
-            self.led.shutdown()
         except Exception:
-            logger.exception("Error shutting down HAL")
+            logger.exception("Error shutting down display")
+        for attr in ("audio", "input", "wires", "usb_detector", "battery", "led"):
+            component = getattr(self, attr, None)
+            if component is None:
+                continue
+            try:
+                component.shutdown()
+            except Exception:
+                logger.exception("Error shutting down %s", attr)
 
         _shutdown_elapsed = time.time() - _shutdown_start
         logger.info(f"Application shut down complete ({_shutdown_elapsed:.2f}s)")

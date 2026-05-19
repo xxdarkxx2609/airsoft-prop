@@ -25,20 +25,27 @@ class TestShutdown:
         assert mock_app.captive_portal is None
         mock_app.shutdown()  # must not raise
 
-    def test_hal_shutdown_exception_is_swallowed_not_raised(
+    def test_hal_shutdown_isolates_per_component_failures(
         self, mock_app
     ) -> None:
-        """A raising HAL shutdown is logged, never propagated to the caller.
+        """One bad driver must not prevent the others from releasing resources.
 
-        Note: the seven HAL shutdowns share a single try/except (see
-        :func:`src.app.App.shutdown`). If display.shutdown() raises,
-        audio/input/etc. are NOT subsequently called in that run —
-        the exception jumps straight to the ``logger.exception`` branch.
-        Systemd's TimeoutStopSec safety net still bounds the process,
-        but a more granular per-HAL try/except would be a worthwhile
-        future refactor.
+        Each HAL component has its own try/except in
+        :func:`src.app.App.shutdown` — a raising display.shutdown() is
+        logged but does not skip audio/input/wires/usb_detector/battery/led.
         """
         boom = MagicMock()
         boom.shutdown.side_effect = RuntimeError("HAL died")
         mock_app.display = boom
-        mock_app.shutdown()  # must not raise — that's the only guarantee here
+        survivors = {
+            attr: MagicMock()
+            for attr in ("audio", "input", "wires", "usb_detector", "battery", "led")
+        }
+        for attr, m in survivors.items():
+            setattr(mock_app, attr, m)
+
+        mock_app.shutdown()  # must not raise
+
+        boom.shutdown.assert_called_once()
+        for attr, m in survivors.items():
+            m.shutdown.assert_called_once()
